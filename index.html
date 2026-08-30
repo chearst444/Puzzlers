@@ -39,6 +39,7 @@
           <span class="pill__value" id="timerValue">60</span>
           <span class="timer-progress" id="tierProgress">0/10</span>
         </div>
+        <span class="mode-progress" id="modeProgress">▦ 0/20</span>
       </div>
     </div>
 
@@ -71,6 +72,15 @@
 <div id="countdownOverlay" class="countdown-overlay" hidden>
   <span class="countdown-overlay__num" id="countdownNumber">10</span>
 </div>
+
+<div id="modeScreen" class="mode-screen" hidden>
+  <div class="mode-screen__card" id="modeScreenCard">
+    <div class="mode-screen__title" id="modeScreenTitle">DIAGONAL TIME</div>
+    <p class="mode-screen__subtitle" id="modeScreenSubtitle">Only diagonal 3-in-a-rows count now.</p>
+    <div class="mode-screen__timer" id="modeScreenTimer">Starting in 5&hellip;</div>
+  </div>
+</div>
+
 <div id="cursorSprite" aria-hidden="true"></div>
 <script src="js/game.js"></script>
 </body>

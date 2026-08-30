@@ -243,6 +243,18 @@ img { max-width: 100%; display: block; }
 }
 @keyframes urgentPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
+/* How many matches until the next Horizontal/Diagonal Time switch. */
+.mode-progress {
+  display: block;
+  margin-top: 1px;
+  font-size: clamp(8px, 1.5vw, 10px);
+  font-weight: 700;
+  color: var(--teal-4);
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.mode-progress.is-diagonal { color: var(--pink-3); }
+
 /* ------------------------------- Frenzy tag ------------------------------- */
 .frenzy-tag {
   align-self: center;
@@ -517,6 +529,84 @@ img { max-width: 100%; display: block; }
   100% { box-shadow: 0 4px 0 rgba(26,26,26,0.3), 0 0 0 0 rgba(184,42,97,0); }
 }
 
+/* --------------------------- Mode-switch interstitial ------------------------ */
+/* Full-screen title card announcing a Horizontal Time <-> Diagonal Time
+   switch. Blocks nothing itself (input is already locked by `busy` for its
+   whole 5s hold) — it's purely the announcement. */
+.mode-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(10, 20, 15, 0.6);
+}
+.mode-screen[hidden] { display: none; }
+
+.mode-screen__card {
+  position: relative;
+  overflow: hidden;
+  width: min(90vw, 400px);
+  border-radius: 20px;
+  border: 4px solid var(--ui-ink);
+  box-shadow: 0 8px 0 rgba(26, 26, 26, 0.35);
+  padding: clamp(26px, 7vw, 40px) clamp(20px, 5vw, 30px);
+  text-align: center;
+  background: var(--ui-white);
+  animation: modeScreenPop 0.4s cubic-bezier(.2, .85, .3, 1.3);
+}
+@keyframes modeScreenPop {
+  from { transform: scale(0.75) rotate(-2deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+/* Decorative backdrop pattern inside the card, themed to the mode it's
+   announcing: diagonal hatching for Diagonal Time, a grid for Horizontal. */
+.mode-screen__card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.16;
+  pointer-events: none;
+}
+.mode-screen__card.is-diagonal::before {
+  background: repeating-linear-gradient(45deg, var(--pink-3) 0 6px, transparent 6px 24px);
+}
+.mode-screen__card.is-orthogonal::before {
+  background:
+    repeating-linear-gradient(0deg, var(--teal-3) 0 4px, transparent 4px 28px),
+    repeating-linear-gradient(90deg, var(--teal-3) 0 4px, transparent 4px 28px);
+}
+.mode-screen__title {
+  position: relative;
+  font-size: clamp(24px, 7vw, 32px);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  margin-bottom: 10px;
+  text-wrap: balance;
+}
+.mode-screen__card.is-diagonal .mode-screen__title { color: var(--pink-3); }
+.mode-screen__card.is-orthogonal .mode-screen__title { color: var(--teal-4); }
+.mode-screen__subtitle {
+  position: relative;
+  margin: 0;
+  font-size: clamp(13px, 3.4vw, 15px);
+  font-weight: 600;
+  color: var(--ui-ink);
+  opacity: 0.85;
+  line-height: 1.4;
+}
+.mode-screen__timer {
+  position: relative;
+  margin-top: 16px;
+  font-size: clamp(11px, 2.6vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
 /* --------------------------------- Legend --------------------------------- */
 .legend {
   display: flex;
@@ -569,7 +659,8 @@ img { max-width: 100%; display: block; }
 
 @media (prefers-reduced-motion: reduce) {
   .gem, .gem__art, .meter__fill, .banner, .heart, .hud.is-frenzy .pill,
-  .frenzy-tag, .pill__value.is-urgent, .countdown-overlay, .countdown-overlay__num {
+  .frenzy-tag, .pill__value.is-urgent, .countdown-overlay, .countdown-overlay__num,
+  .mode-screen__card {
     animation: none !important; transition: none !important;
   }
 }

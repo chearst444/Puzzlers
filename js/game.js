@@ -34,6 +34,11 @@
   // always agree, in or out of Frenzy.
   const ANIM = { swapMs: 220, clearMs: 260, fallMs: 300 };
 
+  // Match-mode cycle: every 20 matches in the current mode, an interstitial
+  // screen holds for 5 seconds and announces the switch to the other mode.
+  const MODE_SWITCH_THRESHOLD = 20;
+  const MODE_SCREEN_MS = 5000;
+
   let bonusWordIndex = 0;
 
   // ------------------------------- State -----------------------------------
@@ -56,6 +61,10 @@
   let frenzyActive = false;
   let frenzyTimeout = null;
 
+  let matchMode = "orthogonal"; // "orthogonal" (rows+columns) | "diagonal"
+  let modeMatchCount = 0;
+  let pendingModeSwitch = false;
+
   // ------------------------------ DOM refs ----------------------------------
   const boardEl = document.getElementById("board");
   const scoreValueEl = document.getElementById("scoreValue");
@@ -71,6 +80,12 @@
   const frenzyTagEl = document.getElementById("frenzyTag");
   const countdownOverlayEl = document.getElementById("countdownOverlay");
   const countdownNumberEl = document.getElementById("countdownNumber");
+  const modeProgressEl = document.getElementById("modeProgress");
+  const modeScreenEl = document.getElementById("modeScreen");
+  const modeScreenCardEl = document.getElementById("modeScreenCard");
+  const modeScreenTitleEl = document.getElementById("modeScreenTitle");
+  const modeScreenSubtitleEl = document.getElementById("modeScreenSubtitle");
+  const modeScreenTimerEl = document.getElementById("modeScreenTimer");
 
   // ------------------------------ Utilities ---------------------------------
   const rand = (n) => Math.floor(Math.random() * n);
@@ -87,7 +102,8 @@
   }
 
   // Fill the board with random gems, rejecting any placement that would
-  // create an immediate 3-in-a-row so the puzzle starts clean.
+  // create an immediate 3-in-a-row — horizontal, vertical, or diagonal, so
+  // a reshuffle during Diagonal Time doesn't hand out a freebie either.
   function initBoard() {
     board = createEmptyBoard();
     for (let r = 0; r < SIZE; r++) {
@@ -99,7 +115,9 @@
           tries++;
         } while (tries < 50 && (
           (c >= 2 && sameType(type, board[r][c - 1]) && sameType(type, board[r][c - 2])) ||
-          (r >= 2 && sameType(type, board[r - 1][c]) && sameType(type, board[r - 2][c]))
+          (r >= 2 && sameType(type, board[r - 1][c]) && sameType(type, board[r - 2][c])) ||
+          (r >= 2 && c >= 2 && sameType(type, board[r - 1][c - 1]) && sameType(type, board[r - 2][c - 2])) ||
+          (r >= 2 && c + 2 < SIZE && sameType(type, board[r - 1][c + 1]) && sameType(type, board[r - 2][c + 2]))
         ));
         board[r][c] = makeGem(type);
       }
@@ -172,42 +190,72 @@
   }
 
   // ------------------------------ Match detection -----------------------------
-  function findMatches() {
-    const matched = new Set(); // "r,c"
-    // horizontal
-    for (let r = 0; r < SIZE; r++) {
-      let runStart = 0;
-      for (let c = 1; c <= SIZE; c++) {
-        const cur = c < SIZE ? board[r][c] : null;
-        const prev = board[r][c - 1];
-        if (!cur || !prev || !sameType(cur, prev)) {
-          if (c - runStart >= 3) {
-            for (let k = runStart; k < c; k++) matched.add(`${r},${k}`);
-          }
-          runStart = c;
+  // Runs a 3+-in-a-row scan along one ordered line of [r,c] cells (a row, a
+  // column, or a diagonal) and adds any run's coordinates to `matched`.
+  function scanLineForMatches(cells, matched) {
+    let runStart = 0;
+    for (let i = 1; i <= cells.length; i++) {
+      const cur = i < cells.length ? board[cells[i][0]][cells[i][1]] : null;
+      const [pr, pc] = cells[i - 1];
+      const prev = board[pr][pc];
+      if (!cur || !prev || !sameType(cur, prev)) {
+        if (i - runStart >= 3) {
+          for (let k = runStart; k < i; k++) matched.add(`${cells[k][0]},${cells[k][1]}`);
         }
+        runStart = i;
       }
     }
-    // vertical
+  }
+
+  // Horizontal + vertical matches — the standard rule, active during
+  // "Horizontal Time".
+  function findOrthogonalMatches() {
+    const matched = new Set();
+    for (let r = 0; r < SIZE; r++) {
+      const line = []; for (let c = 0; c < SIZE; c++) line.push([r, c]);
+      scanLineForMatches(line, matched);
+    }
     for (let c = 0; c < SIZE; c++) {
-      let runStart = 0;
-      for (let r = 1; r <= SIZE; r++) {
-        const cur = r < SIZE ? board[r][c] : null;
-        const prev = board[r - 1][c];
-        if (!cur || !prev || !sameType(cur, prev)) {
-          if (r - runStart >= 3) {
-            for (let k = runStart; k < r; k++) matched.add(`${k},${c}`);
-          }
-          runStart = r;
-        }
-      }
+      const line = []; for (let r = 0; r < SIZE; r++) line.push([r, c]);
+      scanLineForMatches(line, matched);
     }
     return matched;
+  }
+
+  // Diagonal-only matches ('\' and '/') — the special rule during
+  // "Diagonal Time"; rows and columns don't clear at all in this mode.
+  function findDiagonalMatches() {
+    const matched = new Set();
+    for (let d = -(SIZE - 1); d <= SIZE - 1; d++) { // '\' diagonals: r - c = d
+      const line = [];
+      for (let r = 0; r < SIZE; r++) { const c = r - d; if (c >= 0 && c < SIZE) line.push([r, c]); }
+      scanLineForMatches(line, matched);
+    }
+    for (let s = 0; s <= (SIZE - 1) * 2; s++) { // '/' diagonals: r + c = s
+      const line = [];
+      for (let r = 0; r < SIZE; r++) { const c = s - r; if (c >= 0 && c < SIZE) line.push([r, c]); }
+      scanLineForMatches(line, matched);
+    }
+    return matched;
+  }
+
+  function findMatches() {
+    return matchMode === "diagonal" ? findDiagonalMatches() : findOrthogonalMatches();
   }
 
   function wouldMatchAt(testBoard, r, c) {
     const gem = testBoard[r][c];
     if (!gem) return false;
+    if (matchMode === "diagonal") {
+      let run = 1;
+      for (let k = 1; r - k >= 0 && c - k >= 0 && sameType(testBoard[r - k][c - k], gem); k++) run++;
+      for (let k = 1; r + k < SIZE && c + k < SIZE && sameType(testBoard[r + k][c + k], gem); k++) run++;
+      if (run >= 3) return true;
+      run = 1;
+      for (let k = 1; r - k >= 0 && c + k < SIZE && sameType(testBoard[r - k][c + k], gem); k++) run++;
+      for (let k = 1; r + k < SIZE && c - k >= 0 && sameType(testBoard[r + k][c - k], gem); k++) run++;
+      return run >= 3;
+    }
     // horizontal
     let run = 1;
     for (let cc = c - 1; cc >= 0 && sameType(testBoard[r][cc], gem); cc--) run++;
@@ -296,6 +344,8 @@
     timerValueEl.classList.toggle("is-urgent", timeLeft > 0 && timeLeft <= 10);
     tierLabelEl.textContent = round > 1 ? `${currentTier().label} · R${round}` : currentTier().label;
     tierProgressEl.textContent = `${matchesThisTier}/${currentTier().quota}`;
+    modeProgressEl.textContent = `${matchMode === "diagonal" ? "◆" : "▦"} ${modeMatchCount}/${MODE_SWITCH_THRESHOLD}`;
+    modeProgressEl.classList.toggle("is-diagonal", matchMode === "diagonal");
 
     // Big bottom countdown for the final 10 seconds of a tier — ticks 10,
     // 9, 8 … 0, then disappears the moment the tier resets or ends.
@@ -432,6 +482,10 @@
     matchStreak = 0;
     meter = 0;
     gameOver = false;
+    matchMode = "orthogonal";
+    modeMatchCount = 0;
+    pendingModeSwitch = false;
+    modeScreenEl.hidden = true;
     endFrenzy();
     initBoard();
     renderBoard(null);
@@ -466,6 +520,44 @@
     timeLeft = currentTier().seconds;
   }
 
+  // ----------------------------- Match-mode cycle -----------------------------
+  const otherMode = (mode) => (mode === "diagonal" ? "orthogonal" : "diagonal");
+
+  // Every 20 matches in the current mode, hold a 5-second interstitial
+  // announcing the switch, then flip the matching rule and reset the count.
+  function showModeSwitchScreen() {
+    return new Promise((resolve) => {
+      const nextMode = otherMode(matchMode);
+      const isDiagonal = nextMode === "diagonal";
+      modeScreenCardEl.classList.toggle("is-diagonal", isDiagonal);
+      modeScreenCardEl.classList.toggle("is-orthogonal", !isDiagonal);
+      modeScreenTitleEl.textContent = isDiagonal ? "DIAGONAL TIME" : "HORIZONTAL TIME";
+      modeScreenSubtitleEl.textContent = isDiagonal
+        ? "Only diagonal 3-in-a-rows count now — rows and columns won’t clear!"
+        : "Back to normal — rows and columns count again!";
+      modeScreenEl.hidden = false;
+
+      let remaining = Math.ceil(MODE_SCREEN_MS / 1000);
+      const renderCountdown = () => { modeScreenTimerEl.textContent = `Starting in ${remaining}…`; };
+      renderCountdown();
+      const tick = setInterval(() => {
+        remaining -= 1;
+        if (remaining > 0) renderCountdown();
+      }, 1000);
+
+      setTimeout(() => {
+        clearInterval(tick);
+        modeScreenEl.hidden = true;
+        matchMode = nextMode;
+        modeMatchCount = 0;
+        pendingModeSwitch = false;
+        updateHud();
+        if (!hasAnyMove()) reshuffleBoard();
+        resolve();
+      }, MODE_SCREEN_MS);
+    });
+  }
+
   // ------------------------------- Resolve loop ---------------------------------
   async function resolveBoard(initialMatches, comboStart) {
     let matched = initialMatches;
@@ -479,6 +571,8 @@
       matched.forEach(markMatched);
       score += Math.round(matched.size * POINTS_PER_GEM * combo * (frenzyActive ? FRENZY_SCORE_MULT : 1));
       matchesThisTier++;
+      modeMatchCount++;
+      if (modeMatchCount >= MODE_SWITCH_THRESHOLD) pendingModeSwitch = true;
 
       const clearKeys = new Set(matched);
       if (addPower(matched.size * METER_PER_GEM)) {
@@ -552,6 +646,9 @@
     renderBoard(null); // elements land exactly where the slide already placed them, no jump
     await resolveBoard(matches, 1);
     updateHud();
+    // Busy (and so the timer) stays true/paused through the interstitial —
+    // it's a forced break, not the player's move to spend time on.
+    if (pendingModeSwitch && !gameOver) await showModeSwitchScreen();
     busy = false;
     if (!gameOver && !hasAnyMove()) reshuffleBoard();
   }
