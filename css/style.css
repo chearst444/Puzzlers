@@ -1,0 +1,409 @@
+/* =========================================================================
+   Puzzlers — Match-3 stylesheet
+   Modular sprite-atlas slicing: every gem shape is cropped from the single
+   transparent PNG atlas (assets/spritesheet_default.png, 364x364) with
+   CSS `mask-image` + fixed mask-position/mask-size (a pixel-accurate crop,
+   identical math to classic background-sprite offsets). Because the crop
+   happens through a mask, the shape's fill color comes from a plain CSS
+   gradient underneath, which is how the same atlas art is recolored into
+   the game's teal / forest / pink palette below.
+   ========================================================================= */
+
+:root {
+  /* ---- Primary Mint & Teal Greens ---- */
+  --teal-1: #40E0D0;   /* Bright Teal Accent   (highlight) */
+  --teal-2: #2EE898;   /* Vibrant Mint         (light)     */
+  --teal-3: #16C47F;   /* Mid Spring Green     (base)      */
+  --teal-4: #0E8345;   /* Deep Emerald Shade   (shadow)    */
+
+  /* ---- Classic Forest & Leaf Greens ---- */
+  --forest-1: #33D17A; /* Light Lime Highlight (highlight) */
+  --forest-2: #1FA463; /* Leaf Green           (light)     */
+  --forest-3: #0F6B38; /* Deep Foliage         (base)      */
+  --forest-4: #0A4220; /* Dark Moss Shadow     (shadow)    */
+
+  /* ---- Gemstone Pinks & Magentas ---- */
+  --pink-1: #FF66B2;   /* Bright Rose Pink     (highlight) */
+  --pink-2: #E6397E;   /* Vibrant Fuchsia      (light)     */
+  --pink-3: #B82A61;   /* Deep Magenta         (base)      */
+  --pink-4: #801A42;   /* Dark Berry Shadow    (shadow)    */
+
+  /* ---- UI Neutrals ---- */
+  --ui-white: #FFFFFF;
+  --ui-mint-tint: #E2F8EE;
+  --ui-ink: #1A1A1A;
+
+  --board-size: min(94vw, 94vh, 640px);
+  --cell: calc(var(--board-size) / 8);
+  /* Plain unitless scale factor (cellPx / 64), recomputed by game.js via
+     ResizeObserver — kept in JS because dividing two lengths inside calc()
+     to get a unitless number for transform:scale() is not reliable across
+     browsers. Falls back to 1 before the first measurement. */
+  --gem-scale: 1;
+
+  --atlas-w: 364px;
+  --atlas-h: 364px;
+
+  color-scheme: light;
+}
+
+/* --------------------------------- Reset -------------------------------- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: none;
+  background: var(--ui-mint-tint);
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ui-ink);
+  /* Lock the page down so it behaves like a native app, not a scrollable
+     document: no rubber-banding, no pinch zoom, no text selection drag. */
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+img { max-width: 100%; display: block; }
+
+/* ------------------------------- App shell ------------------------------- */
+#app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(8px, 2vw, 18px);
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+  padding-top: clamp(10px, 2vh, 22px);
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(64, 224, 208, 0.18), transparent 60%),
+    var(--ui-mint-tint);
+}
+
+/* ---------------------------------- HUD ---------------------------------- */
+.hud {
+  width: min(96vw, 640px);
+  display: grid;
+  grid-template-columns: 1.3fr 1.6fr 1fr;
+  gap: clamp(6px, 1.6vw, 14px);
+  align-items: stretch;
+}
+
+/* "Pill-shaped panels" — flat rounded-rect UI chrome built purely from the
+   palette, echoing the blank pill mockups on the asset sheet. */
+.pill {
+  position: relative;
+  min-height: clamp(44px, 8vh, 60px);
+  border-radius: 999px;
+  background: var(--ui-white);
+  border: 3px solid var(--ui-ink);
+  box-shadow: 0 3px 0 rgba(26, 26, 26, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  padding: 0 clamp(10px, 2.4vw, 20px);
+  overflow: hidden;
+}
+.pill--score { border-color: var(--teal-4); }
+.pill--power { border-color: var(--pink-3); background: linear-gradient(180deg, #fff, var(--ui-mint-tint)); }
+.pill--moves { border-color: var(--forest-3); }
+
+.pill__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  line-height: 1.05;
+}
+.pill__label {
+  font-size: clamp(9px, 1.6vw, 11px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--forest-3);
+  opacity: 0.75;
+}
+.pill--power .pill__label { color: var(--pink-3); }
+.pill__value {
+  font-size: clamp(16px, 3.6vw, 24px);
+  font-weight: 800;
+  color: var(--ui-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter {
+  position: relative;
+  margin-top: 3px;
+  height: clamp(10px, 2.2vh, 14px);
+  border-radius: 999px;
+  background: var(--ui-mint-tint);
+  border: 2px solid var(--pink-3);
+  overflow: hidden;
+}
+.meter__fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--pink-1), var(--pink-2), var(--pink-3));
+  transition: width 0.35s ease;
+}
+.meter__word {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(8px, 1.4vw, 10px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--ui-ink);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.meter__word.is-visible { opacity: 1; }
+
+/* --------------------------------- Banner --------------------------------- */
+.banner {
+  width: min(96vw, 640px);
+  text-align: center;
+  font-weight: 800;
+  font-size: clamp(13px, 3vw, 18px);
+  color: var(--ui-white);
+  background: linear-gradient(90deg, var(--teal-3), var(--forest-2));
+  border: 3px solid var(--ui-ink);
+  border-radius: 14px;
+  padding: 8px 14px;
+  box-shadow: 0 3px 0 rgba(26, 26, 26, 0.25);
+  animation: bannerPop 0.35s ease;
+}
+.banner.is-bonus { background: linear-gradient(90deg, var(--pink-2), var(--pink-3)); }
+@keyframes bannerPop {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* --------------------------------- Board --------------------------------- */
+.board-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  touch-action: none; /* lock: no scroll/zoom while dragging gems */
+}
+
+.board {
+  position: relative;
+  width: var(--board-size);
+  height: var(--board-size);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  background: var(--ui-white);
+  border: 4px solid var(--ui-ink);
+  border-radius: 16px;
+  box-shadow: 0 6px 0 rgba(26, 26, 26, 0.25);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Checkerboard "background grid" built from the mint/teal neutrals. */
+  background: var(--ui-mint-tint);
+}
+.cell:nth-child(16n+1), .cell:nth-child(16n+3), .cell:nth-child(16n+5), .cell:nth-child(16n+7),
+.cell:nth-child(16n+10), .cell:nth-child(16n+12), .cell:nth-child(16n+14), .cell:nth-child(16n+16) {
+  background: var(--ui-white);
+}
+.cell.is-drop-target {
+  background: rgba(64, 224, 208, 0.35);
+}
+
+/* ----------------------------- Gem sprites ------------------------------- */
+.gem {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  will-change: transform;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  z-index: 2;
+}
+.gem:active { cursor: grabbing; }
+.gem.is-selected .gem__art { filter: drop-shadow(0 0 0 transparent) brightness(1.12); }
+.gem.is-selected::after {
+  content: "";
+  position: absolute;
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  border: 3px solid var(--pink-2);
+  box-shadow: 0 0 0 3px rgba(255, 102, 178, 0.35);
+  animation: selectPulse 0.9s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes selectPulse {
+  0%, 100% { transform: scale(0.96); opacity: 0.9; }
+  50% { transform: scale(1.04); opacity: 0.55; }
+}
+.gem.is-matched .gem__art {
+  animation: gemClear 0.28s ease forwards;
+}
+@keyframes gemClear {
+  to { transform: scale(0); opacity: 0; }
+}
+.gem.is-falling { transition: transform 0.28s cubic-bezier(.4,.0,.2,1); }
+.gem.is-invalid-swap { animation: swapReject 0.3s ease; }
+@keyframes swapReject {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-4px, 0); }
+  75% { transform: translate(4px, 0); }
+}
+
+.gem__art {
+  /* Fixed native pixel box (set per-shape below) so the mask crop stays
+     pixel-accurate; flex-shrink is disabled so the flex layout in .gem
+     can never squash that box — responsiveness comes only from the
+     transform:scale below, which is a paint-time effect and leaves the
+     crop untouched. */
+  flex: none;
+  background-image: url("../assets/spritesheet_default.png");
+  background-repeat: no-repeat;
+  background-size: var(--atlas-w) var(--atlas-h);
+  -webkit-mask-image: url("../assets/spritesheet_default.png");
+  mask-image: url("../assets/spritesheet_default.png");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: var(--atlas-w) var(--atlas-h);
+  mask-size: var(--atlas-w) var(--atlas-h);
+  transform: scale(var(--gem-scale));
+  transform-origin: center;
+  filter: drop-shadow(0 2px 1px rgba(10, 20, 15, 0.25));
+}
+
+/* Shape crops — pixel-accurate offsets read straight from the atlas XML. */
+.gem[data-shape="pentagon"] .gem__art {
+  width: 48px; height: 46px;
+  -webkit-mask-position: -128px -288px; mask-position: -128px -288px;
+}
+.gem[data-shape="diamond"] .gem__art {
+  width: 48px; height: 48px;
+  -webkit-mask-position: -176px -286px; mask-position: -176px -286px;
+}
+.gem[data-shape="rectangle"] .gem__art {
+  width: 64px; height: 32px;
+  -webkit-mask-position: 0px -306px; mask-position: 0px -306px;
+}
+
+/* Palette fills — a soft highlight + a 4-stop gradient per colorway, both
+   clipped through the mask above so only the sprite's own silhouette shows. */
+.gem[data-color="teal"] .gem__art {
+  background-image:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), rgba(255,255,255,0) 45%),
+    linear-gradient(135deg, var(--teal-1) 0%, var(--teal-2) 38%, var(--teal-3) 70%, var(--teal-4) 100%);
+}
+.gem[data-color="forest"] .gem__art {
+  background-image:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), rgba(255,255,255,0) 45%),
+    linear-gradient(135deg, var(--forest-1) 0%, var(--forest-2) 38%, var(--forest-3) 70%, var(--forest-4) 100%);
+}
+.gem[data-color="pink"] .gem__art {
+  background-image:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), rgba(255,255,255,0) 45%),
+    linear-gradient(135deg, var(--pink-1) 0%, var(--pink-2) 38%, var(--pink-3) 70%, var(--pink-4) 100%);
+}
+
+/* ---------------------------- Custom cursor ------------------------------ */
+#cursorSprite {
+  position: fixed;
+  top: 0; left: 0;
+  width: 20px; height: 24px;
+  pointer-events: none;
+  z-index: 999;
+  background-image: url("../assets/spritesheet_default.png");
+  background-repeat: no-repeat;
+  background-size: var(--atlas-w) var(--atlas-h);
+  background-position: -91px -338px; /* pointer.png */
+  -webkit-mask-image: url("../assets/spritesheet_default.png");
+  mask-image: url("../assets/spritesheet_default.png");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: var(--atlas-w) var(--atlas-h);
+  mask-size: var(--atlas-w) var(--atlas-h);
+  -webkit-mask-position: -91px -338px;
+  mask-position: -91px -338px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35));
+  transform: translate(-2px, -2px);
+  display: none;
+}
+#cursorSprite.is-dragging {
+  width: 27px; height: 25px;
+  background-position: 0px -338px; /* hand.png */
+  -webkit-mask-position: 0px -338px;
+  mask-position: 0px -338px;
+}
+/* Only show the sprite cursor on real pointer devices; keep the system
+   cursor as fallback and never intercept touch. */
+@media (hover: hover) and (pointer: fine) {
+  .board-wrap, .board, .gem { cursor: none; }
+  #cursorSprite { display: block; }
+}
+
+/* --------------------------------- Legend --------------------------------- */
+.legend {
+  display: flex;
+  gap: 10px;
+  padding-bottom: env(safe-area-inset-bottom, 10px);
+}
+.legend__chip {
+  width: clamp(14px, 3vw, 20px);
+  height: clamp(14px, 3vw, 20px);
+  border-radius: 50%;
+  border: 2px solid var(--ui-ink);
+}
+.legend__chip--teal   { background: linear-gradient(135deg, var(--teal-1), var(--teal-4)); }
+.legend__chip--forest { background: linear-gradient(135deg, var(--forest-1), var(--forest-4)); }
+.legend__chip--pink   { background: linear-gradient(135deg, var(--pink-1), var(--pink-4)); }
+
+/* ============================ Responsive layout ============================ */
+
+/* Small phones, portrait */
+@media (max-width: 420px) {
+  .hud { grid-template-columns: 1fr 1.4fr 0.9fr; }
+  .pill__label { letter-spacing: 0.04em; }
+}
+
+/* Landscape phones: keep the board from ever forcing horizontal scroll and
+   shrink the HUD so the board still fits above the fold. */
+@media (orientation: landscape) and (max-height: 480px) {
+  #app {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2vw, 16px);
+    padding-top: env(safe-area-inset-top, 8px);
+  }
+  .hud {
+    width: clamp(160px, 26vw, 260px);
+    grid-template-columns: 1fr;
+  }
+  .banner { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); width: max-content; }
+  .legend { flex-direction: column; }
+  :root { --board-size: min(90vh, 90vw, 560px); }
+}
+
+/* Larger tablets / desktop: cap board size, give the HUD more breathing room */
+@media (min-width: 900px) {
+  :root { --board-size: min(72vh, 640px); }
+  .hud { width: 640px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gem, .gem__art, .meter__fill, .banner { animation: none !important; transition: none !important; }
+}

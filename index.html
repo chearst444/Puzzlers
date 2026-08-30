@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0E8345" />
+<title>Puzzlers &mdash; Match-3</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <header id="hud" class="hud">
+    <div class="pill pill--score" id="scorePanel" aria-label="Score panel">
+      <div class="pill__content">
+        <span class="pill__label">SCORE</span>
+        <span class="pill__value" id="scoreValue">0</span>
+      </div>
+    </div>
+
+    <div class="pill pill--power" id="powerPanel" aria-label="Power meter panel">
+      <div class="pill__content pill__content--power">
+        <span class="pill__label">POWER</span>
+        <div class="meter" id="meterTrack">
+          <div class="meter__fill" id="meterFill"></div>
+          <span class="meter__word" id="meterWord"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pill pill--moves" id="movesPanel" aria-label="Moves panel">
+      <div class="pill__content">
+        <span class="pill__label">MOVES</span>
+        <span class="pill__value" id="movesValue">30</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main id="boardWrap" class="board-wrap">
+    <div id="board" class="board" role="grid" aria-label="Match-3 game board"></div>
+  </main>
+
+  <footer class="legend" aria-hidden="true">
+    <span class="legend__chip legend__chip--teal"></span>
+    <span class="legend__chip legend__chip--forest"></span>
+    <span class="legend__chip legend__chip--pink"></span>
+  </footer>
+
+</div>
+
+<div id="cursorSprite" aria-hidden="true"></div>
+<script src="js/game.js"></script>
+</body>
+</html>
