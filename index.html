@@ -21,6 +21,27 @@
       </div>
     </div>
 
+    <div class="pill pill--hearts" id="heartsPanel" aria-label="Lives panel">
+      <div class="pill__content">
+        <span class="pill__label">LIVES</span>
+        <div class="hearts" id="heartsRow">
+          <span class="heart is-filled"></span>
+          <span class="heart is-filled"></span>
+          <span class="heart is-filled"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pill pill--timer" id="timerPanel" aria-label="Time-attack tier panel">
+      <div class="pill__content">
+        <span class="pill__label" id="tierLabel">TIER 1</span>
+        <div class="timer-row">
+          <span class="pill__value" id="timerValue">60</span>
+          <span class="timer-progress" id="tierProgress">0/10</span>
+        </div>
+      </div>
+    </div>
+
     <div class="pill pill--power" id="powerPanel" aria-label="Power meter panel">
       <div class="pill__content pill__content--power">
         <span class="pill__label">POWER</span>
@@ -30,15 +51,9 @@
         </div>
       </div>
     </div>
-
-    <div class="pill pill--moves" id="movesPanel" aria-label="Moves panel">
-      <div class="pill__content">
-        <span class="pill__label">MOVES</span>
-        <span class="pill__value" id="movesValue">30</span>
-      </div>
-    </div>
   </header>
 
+  <div id="frenzyTag" class="frenzy-tag" hidden>FRENZY</div>
   <div id="banner" class="banner" hidden></div>
 
   <main id="boardWrap" class="board-wrap">

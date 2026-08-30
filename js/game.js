@@ -8,11 +8,31 @@
   const SIZE = 8;
   const SHAPES = ["pentagon", "diamond", "rectangle"];
   const COLORS = ["teal", "forest", "pink"];
-  const START_MOVES = 30;
   const POINTS_PER_GEM = 10;
   const METER_PER_GEM = 7;
   const SWIPE_THRESHOLD_RATIO = 0.22; // fraction of a cell needed to register a swipe
   const BONUS_WORDS = ["SPARKLE", "BLOSSOM", "AURORA", "MINTY", "RADIANT", "LAGOON", "PETAL"];
+
+  const MAX_HEARTS = 3;
+
+  // Progressive time-attack tiers: each gets tougher — more matches, less time.
+  const TIERS = [
+    { label: "TIER 1", quota: 10, seconds: 60 },
+    { label: "TIER 2", quota: 12, seconds: 45 },
+    { label: "TIER 3", quota: 15, seconds: 30 },
+  ];
+
+  // Frenzy: every 5 consecutive successful swaps speeds animations up and
+  // boosts scoring for a few seconds.
+  const FRENZY_STREAK_STEP = 5;
+  const FRENZY_DURATION_MS = 8000;
+  const FRENZY_SCORE_MULT = 1.5;
+  const FRENZY_SPEED_MULT = 0.55; // multiplies animation durations (<1 = faster)
+
+  // Base animation durations in ms — also mirrored onto the CSS custom
+  // properties --dur-motion / --dur-clear so JS waits and CSS transitions
+  // always agree, in or out of Frenzy.
+  const ANIM = { swapMs: 220, clearMs: 260, fallMs: 300 };
 
   let bonusWordIndex = 0;
 
@@ -20,20 +40,35 @@
   /** board[row][col] = { id, shape, color } | null */
   let board = [];
   let score = 0;
-  let moves = START_MOVES;
   let meter = 0;
   let busy = false;      // true while a resolve animation sequence is running
   let gameOver = false;
   let gemUid = 1;
 
+  let hearts = MAX_HEARTS;
+  let tierIndex = 0;
+  let round = 1;
+  let matchesThisTier = 0;
+  let timeLeft = TIERS[0].seconds;
+  let timerInterval = null;
+
+  let matchStreak = 0;
+  let frenzyActive = false;
+  let frenzyTimeout = null;
+
   // ------------------------------ DOM refs ----------------------------------
   const boardEl = document.getElementById("board");
   const scoreValueEl = document.getElementById("scoreValue");
-  const movesValueEl = document.getElementById("movesValue");
   const meterFillEl = document.getElementById("meterFill");
   const meterWordEl = document.getElementById("meterWord");
   const bannerEl = document.getElementById("banner");
   const cursorEl = document.getElementById("cursorSprite");
+  const heartsRowEl = document.getElementById("heartsRow");
+  const timerValueEl = document.getElementById("timerValue");
+  const tierLabelEl = document.getElementById("tierLabel");
+  const tierProgressEl = document.getElementById("tierProgress");
+  const hudEl = document.getElementById("hud");
+  const frenzyTagEl = document.getElementById("frenzyTag");
 
   // ------------------------------ Utilities ---------------------------------
   const rand = (n) => Math.floor(Math.random() * n);
@@ -41,6 +76,9 @@
   const sameType = (a, b) => !!a && !!b && a.shape === b.shape && a.color === b.color;
   const makeGem = (type) => ({ id: gemUid++, shape: type.shape, color: type.color });
   const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+  const currentTier = () => TIERS[tierIndex];
+  // Frenzy-aware animation duration for a given ANIM key.
+  const dur = (key) => Math.round(ANIM[key] * (frenzyActive ? FRENZY_SPEED_MULT : 1));
 
   function createEmptyBoard() {
     return Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
@@ -235,11 +273,26 @@
     return fallInfo;
   }
 
-  // ---------------------------------- Scoring ----------------------------------
+  // ---------------------------------- HUD ----------------------------------------
   function updateHud() {
     scoreValueEl.textContent = score.toLocaleString();
-    movesValueEl.textContent = String(Math.max(0, moves));
     meterFillEl.style.width = `${Math.min(100, meter)}%`;
+    renderHearts();
+    updateTimerUI();
+  }
+
+  function renderHearts() {
+    const els = heartsRowEl.children;
+    for (let i = 0; i < els.length; i++) {
+      els[i].classList.toggle("is-filled", i < hearts);
+    }
+  }
+
+  function updateTimerUI() {
+    timerValueEl.textContent = String(Math.max(0, Math.ceil(timeLeft)));
+    timerValueEl.classList.toggle("is-urgent", timeLeft > 0 && timeLeft <= 10);
+    tierLabelEl.textContent = round > 1 ? `${currentTier().label} · R${round}` : currentTier().label;
+    tierProgressEl.textContent = `${matchesThisTier}/${currentTier().quota}`;
   }
 
   function showBanner(text, isBonus) {
@@ -254,6 +307,7 @@
     showBanner._t = setTimeout(() => { bannerEl.hidden = true; }, 1800);
   }
 
+  // ------------------------------- Power meter ------------------------------------
   // Adds to the power meter; returns true the moment it fills so the caller
   // can fold a bonus board-clear into the pass currently resolving.
   function addPower(amount) {
@@ -282,8 +336,109 @@
     const keys = new Set();
     for (let c = 0; c < SIZE; c++) keys.add(`${wipeRow},${c}`);
     for (let r = 0; r < SIZE; r++) keys.add(`${r},${wipeCol}`);
-    score += keys.size * POINTS_PER_GEM * 2;
+    score += Math.round(keys.size * POINTS_PER_GEM * 2 * (frenzyActive ? FRENZY_SCORE_MULT : 1));
     return keys;
+  }
+
+  // -------------------------------- Frenzy mechanic ---------------------------------
+  function applyAnimSpeed() {
+    boardEl.style.setProperty("--dur-motion", `${dur("fallMs")}ms`);
+    boardEl.style.setProperty("--dur-clear", `${dur("clearMs")}ms`);
+  }
+
+  function registerSuccessfulSwap() {
+    matchStreak++;
+    if (matchStreak % FRENZY_STREAK_STEP === 0) activateFrenzy();
+  }
+
+  function activateFrenzy() {
+    frenzyActive = true;
+    applyAnimSpeed();
+    hudEl.classList.add("is-frenzy");
+    frenzyTagEl.hidden = false;
+    clearTimeout(frenzyTimeout);
+    frenzyTimeout = setTimeout(endFrenzy, FRENZY_DURATION_MS);
+    showBanner(`FRENZY! x${FRENZY_SCORE_MULT} score, faster tiles`, false);
+  }
+
+  function endFrenzy() {
+    if (!frenzyActive) return;
+    frenzyActive = false;
+    applyAnimSpeed();
+    hudEl.classList.remove("is-frenzy");
+    frenzyTagEl.hidden = true;
+    clearTimeout(frenzyTimeout);
+  }
+
+  // ------------------------------- Hearts & tiers -----------------------------------
+  function loseHeart(reason) {
+    if (gameOver) return;
+    hearts = Math.max(0, hearts - 1);
+    matchStreak = 0;
+    endFrenzy();
+    const flashEl = heartsRowEl.children[hearts];
+    if (flashEl) {
+      flashEl.classList.add("is-losing");
+      setTimeout(() => flashEl.classList.remove("is-losing"), 500);
+    }
+    updateHud();
+    if (hearts <= 0) {
+      triggerGameOver(reason);
+    } else if (reason === "timeout") {
+      showBanner(`Time's up! Retry ${currentTier().label}`, true);
+    }
+  }
+
+  function triggerGameOver(reason) {
+    gameOver = true;
+    clearInterval(timerInterval);
+    const lead = reason === "timeout" ? "Out of time" : "Out of hearts";
+    showBanner(`${lead} — Final Score ${score.toLocaleString()}`, true);
+    setTimeout(resetRun, 2200);
+  }
+
+  function resetRun() {
+    score = 0;
+    hearts = MAX_HEARTS;
+    tierIndex = 0;
+    round = 1;
+    matchesThisTier = 0;
+    timeLeft = currentTier().seconds;
+    matchStreak = 0;
+    meter = 0;
+    gameOver = false;
+    endFrenzy();
+    initBoard();
+    renderBoard(null);
+    updateHud();
+    startTimer();
+  }
+
+  // Timer for the active tier — pauses while a swap is mid-resolve so
+  // animation time never eats into the countdown.
+  function startTimer() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (gameOver || busy) return;
+      timeLeft = Math.max(0, timeLeft - 1);
+      updateTimerUI();
+      if (timeLeft <= 0) loseHeart("timeout");
+    }, 1000);
+  }
+
+  // Successful tier clear: time-bonus score, advance (looping tiers 1→2→3→1
+  // with the round counter climbing) and give the next tier a fresh clock.
+  function advanceTier() {
+    const bonus = Math.round(timeLeft) * 15;
+    score += bonus;
+    showBanner(`${currentTier().label} clear! +${bonus.toLocaleString()} bonus`, true);
+    tierIndex++;
+    if (tierIndex >= TIERS.length) {
+      tierIndex = 0;
+      round++;
+    }
+    matchesThisTier = 0;
+    timeLeft = currentTier().seconds;
   }
 
   // ------------------------------- Resolve loop ---------------------------------
@@ -297,19 +452,21 @@
         if (el) el.classList.add("is-matched");
       };
       matched.forEach(markMatched);
-      score += matched.size * POINTS_PER_GEM * combo;
+      score += Math.round(matched.size * POINTS_PER_GEM * combo * (frenzyActive ? FRENZY_SCORE_MULT : 1));
+      matchesThisTier++;
 
       const clearKeys = new Set(matched);
       if (addPower(matched.size * METER_PER_GEM)) {
         const bonusKeys = triggerBonus();
         bonusKeys.forEach((k) => { if (!clearKeys.has(k)) markMatched(k); clearKeys.add(k); });
       }
+      if (matchesThisTier >= currentTier().quota) advanceTier();
       updateHud();
-      await wait(240);
+      await wait(dur("clearMs"));
 
       const fallInfo = collapseAndRefill(clearKeys);
       renderBoard(fallInfo);
-      await wait(300);
+      await wait(dur("fallMs"));
 
       matched = findMatches();
       combo++;
@@ -350,38 +507,34 @@
     const dx = (c2 - c1) * cellPx, dy = (r2 - r1) * cellPx;
     if (el1) { el1.classList.add("is-falling"); el1.style.transform = `translate(${dx}px, ${dy}px)`; }
     if (el2) { el2.classList.add("is-falling"); el2.style.transform = `translate(${-dx}px, ${-dy}px)`; }
-    await wait(220);
+    await wait(dur("swapMs"));
 
     swapCells(board, r1, c1, r2, c2);
     const matches = findMatches();
     if (matches.size === 0) {
-      // no match — slide back to where they started
+      // no match — slide back to where they started, and an invalid move
+      // costs a heart per the game's balancing rules
       if (el1) el1.style.transform = "";
       if (el2) el2.style.transform = "";
-      await wait(220);
+      await wait(dur("swapMs"));
       if (el1) { el1.classList.remove("is-falling"); el1.classList.add("is-invalid-swap"); setTimeout(() => el1.classList.remove("is-invalid-swap"), 300); }
       if (el2) el2.classList.remove("is-falling");
       busy = false;
+      loseHeart("invalid");
       return;
     }
-    moves = Math.max(0, moves - 1);
+    registerSuccessfulSwap();
     renderBoard(null); // elements land exactly where the slide already placed them, no jump
     await resolveBoard(matches, 1);
     updateHud();
     busy = false;
-    if (moves <= 0) endGame();
-    else if (!hasAnyMove()) reshuffleBoard();
+    if (!gameOver && !hasAnyMove()) reshuffleBoard();
   }
 
   function reshuffleBoard() {
     showBanner("No moves left — reshuffling", false);
     initBoard();
     renderBoard(null);
-  }
-
-  function endGame() {
-    gameOver = true;
-    showBanner(`Game Over — Final Score ${score.toLocaleString()}`, true);
   }
 
   function attachGemInput(el) {
@@ -500,10 +653,12 @@
     initBoard();
     buildGrid();
     renderBoard(null);
+    applyAnimSpeed();
     updateHud();
     lockViewportGestures();
     initCursorFollower();
     syncGemScale();
+    startTimer();
     if (window.ResizeObserver) {
       new ResizeObserver(syncGemScale).observe(boardEl);
     } else {

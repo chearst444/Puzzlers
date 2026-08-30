@@ -44,6 +44,11 @@
   --atlas-w: 364px;
   --atlas-h: 364px;
 
+  /* Animation speed knobs — plain durations so game.js can speed them up
+     during a Frenzy streak without touching any other rule. */
+  --dur-motion: 280ms;  /* swap-slide + gravity-fall transitions */
+  --dur-clear: 260ms;   /* matched-gem pop-out animation */
+
   color-scheme: light;
 }
 
@@ -86,11 +91,26 @@ img { max-width: 100%; display: block; }
 
 /* ---------------------------------- HUD ---------------------------------- */
 .hud {
+  position: relative;
   width: min(96vw, 640px);
   display: grid;
-  grid-template-columns: 1.3fr 1.6fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: clamp(6px, 1.6vw, 14px);
   align-items: stretch;
+  transition: filter 0.25s ease;
+}
+/* A live Frenzy streak gets a teal ring on every pill — distinct from the
+   Power meter's pink, so the two systems never read as one thing. */
+.hud.is-frenzy .pill {
+  box-shadow:
+    0 3px 0 rgba(26, 26, 26, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.9),
+    0 0 0 3px rgba(64, 224, 208, 0.55);
+  animation: frenzyRing 0.6s ease-in-out infinite;
+}
+@keyframes frenzyRing {
+  0%, 100% { box-shadow: 0 3px 0 rgba(26,26,26,0.25), inset 0 2px 0 rgba(255,255,255,0.9), 0 0 0 2px rgba(64,224,208,0.4); }
+  50% { box-shadow: 0 3px 0 rgba(26,26,26,0.25), inset 0 2px 0 rgba(255,255,255,0.9), 0 0 0 5px rgba(64,224,208,0.65); }
 }
 
 /* "Pill-shaped panels" — flat rounded-rect UI chrome built purely from the
@@ -109,7 +129,8 @@ img { max-width: 100%; display: block; }
 }
 .pill--score { border-color: var(--teal-4); }
 .pill--power { border-color: var(--pink-3); background: linear-gradient(180deg, #fff, var(--ui-mint-tint)); }
-.pill--moves { border-color: var(--forest-3); }
+.pill--hearts { border-color: var(--pink-4); }
+.pill--timer { border-color: var(--forest-3); }
 
 .pill__content {
   display: flex;
@@ -163,6 +184,85 @@ img { max-width: 100%; display: block; }
   transition: opacity 0.25s ease;
 }
 .meter__word.is-visible { opacity: 1; }
+
+/* --------------------------------- Hearts --------------------------------- */
+.hearts {
+  display: flex;
+  gap: clamp(2px, 0.8vw, 5px);
+  margin-top: 2px;
+}
+.heart {
+  position: relative;
+  width: clamp(14px, 3.4vw, 20px);
+  height: clamp(14px, 3.4vw, 20px);
+  flex: none;
+}
+.heart::before {
+  content: "";
+  position: absolute; inset: 0;
+  -webkit-mask-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 29'%3E%3Cpath d='M16 28.5C9 23.7 1 17.6 1 9.9 1 4.9 4.8 1 9.6 1c2.9 0 5.4 1.4 6.4 3.7C17 2.4 19.5 1 22.4 1 27.2 1 31 4.9 31 9.9c0 7.7-8 13.8-15 18.6z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 29'%3E%3Cpath d='M16 28.5C9 23.7 1 17.6 1 9.9 1 4.9 4.8 1 9.6 1c2.9 0 5.4 1.4 6.4 3.7C17 2.4 19.5 1 22.4 1 27.2 1 31 4.9 31 9.9c0 7.7-8 13.8-15 18.6z'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  background: var(--ui-mint-tint);
+  border: 1.5px solid var(--pink-4);
+  border-radius: 3px; /* softens the mask's un-rounded SVG corners slightly */
+}
+.heart.is-filled::before {
+  border: none;
+  background:
+    radial-gradient(ellipse 40% 30% at 26% 22%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(135deg, var(--pink-1) 0%, var(--pink-2) 45%, var(--pink-3) 78%, var(--pink-4) 100%);
+  filter: drop-shadow(0 1px 0 var(--pink-4));
+}
+.heart.is-losing { animation: heartPop 0.5s ease; }
+@keyframes heartPop {
+  0% { transform: scale(1) rotate(0); }
+  30% { transform: scale(1.45) rotate(-10deg); }
+  60% { transform: scale(0.8) rotate(8deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* --------------------------------- Timer --------------------------------- */
+.timer-row {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(4px, 1.4vw, 8px);
+}
+.timer-progress {
+  font-size: clamp(9px, 1.6vw, 11px);
+  font-weight: 700;
+  color: var(--forest-3);
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.pill--timer .pill__value.is-urgent {
+  color: var(--pink-3);
+  animation: urgentPulse 0.5s ease-in-out infinite;
+}
+@keyframes urgentPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ------------------------------- Frenzy tag ------------------------------- */
+.frenzy-tag {
+  align-self: center;
+  width: min(96vw, 640px);
+  text-align: center;
+  font-size: clamp(11px, 2.4vw, 13px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--ui-white);
+  background: linear-gradient(90deg, var(--teal-2), var(--teal-4));
+  border: 2px solid var(--ui-ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  box-shadow: 0 2px 0 rgba(26, 26, 26, 0.25);
+  animation: frenzyTagPop 0.3s ease;
+}
+@keyframes frenzyTagPop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 
 /* --------------------------------- Banner --------------------------------- */
 .banner {
@@ -253,12 +353,12 @@ img { max-width: 100%; display: block; }
   50% { transform: scale(1.04); opacity: 0.55; }
 }
 .gem.is-matched .gem__art {
-  animation: gemClear 0.28s ease forwards;
+  animation: gemClear var(--dur-clear) ease forwards;
 }
 @keyframes gemClear {
   to { transform: scale(0); opacity: 0; }
 }
-.gem.is-falling { transition: transform 0.28s cubic-bezier(.4,.0,.2,1); }
+.gem.is-falling { transition: transform var(--dur-motion) cubic-bezier(.4,.0,.2,1); }
 .gem.is-invalid-swap { animation: swapReject 0.3s ease; }
 @keyframes swapReject {
   0%, 100% { transform: translate(0, 0); }
@@ -284,7 +384,9 @@ img { max-width: 100%; display: block; }
   mask-size: var(--atlas-w) var(--atlas-h);
   transform: scale(var(--gem-scale));
   transform-origin: center;
-  filter: drop-shadow(0 2px 1px rgba(10, 20, 15, 0.25));
+  /* Ambient contact shadow, cast down-right to agree with the crystalline
+     shading below (light from the top-left, shadow to the bottom-right). */
+  filter: drop-shadow(1.5px 2.5px 1px rgba(8, 16, 12, 0.32));
 }
 
 /* Shape crops — pixel-accurate offsets read straight from the atlas XML. */
@@ -301,22 +403,36 @@ img { max-width: 100%; display: block; }
   -webkit-mask-position: 0px -306px; mask-position: 0px -306px;
 }
 
-/* Palette fills — a soft highlight + a 4-stop gradient per colorway, both
-   clipped through the mask above so only the sprite's own silhouette shows. */
+/* Palette fills — layered into a crystalline cut-gem look, all clipped
+   through the mask above so only the sprite's own silhouette shows:
+     1. a tight specular glint, top-left    (the "catching the light" hit)
+     2. a diagonal facet streak             (a cut-glass reflection line)
+     3. a broad soft highlight wash, top-left
+     4. a bloomed shadow, bottom-right      (the facet turning away from light)
+     5. the base diagonal fill, light-to-shadow corner to corner           */
 .gem[data-color="teal"] .gem__art {
   background-image:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), rgba(255,255,255,0) 45%),
-    linear-gradient(135deg, var(--teal-1) 0%, var(--teal-2) 38%, var(--teal-3) 70%, var(--teal-4) 100%);
+    radial-gradient(ellipse 34% 22% at 24% 20%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 72%),
+    linear-gradient(118deg, transparent 42%, rgba(255,255,255,0.32) 47%, rgba(255,255,255,0.05) 50%, transparent 54%),
+    radial-gradient(circle at 28% 26%, rgba(255,255,255,0.5), rgba(255,255,255,0) 50%),
+    radial-gradient(ellipse 60% 45% at 84% 88%, var(--teal-4) 0%, transparent 62%),
+    linear-gradient(135deg, var(--teal-1) 0%, var(--teal-2) 38%, var(--teal-3) 68%, var(--teal-4) 100%);
 }
 .gem[data-color="forest"] .gem__art {
   background-image:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), rgba(255,255,255,0) 45%),
-    linear-gradient(135deg, var(--forest-1) 0%, var(--forest-2) 38%, var(--forest-3) 70%, var(--forest-4) 100%);
+    radial-gradient(ellipse 34% 22% at 24% 20%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 72%),
+    linear-gradient(118deg, transparent 42%, rgba(255,255,255,0.32) 47%, rgba(255,255,255,0.05) 50%, transparent 54%),
+    radial-gradient(circle at 28% 26%, rgba(255,255,255,0.5), rgba(255,255,255,0) 50%),
+    radial-gradient(ellipse 60% 45% at 84% 88%, var(--forest-4) 0%, transparent 62%),
+    linear-gradient(135deg, var(--forest-1) 0%, var(--forest-2) 38%, var(--forest-3) 68%, var(--forest-4) 100%);
 }
 .gem[data-color="pink"] .gem__art {
   background-image:
-    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.85), rgba(255,255,255,0) 45%),
-    linear-gradient(135deg, var(--pink-1) 0%, var(--pink-2) 38%, var(--pink-3) 70%, var(--pink-4) 100%);
+    radial-gradient(ellipse 34% 22% at 24% 20%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 72%),
+    linear-gradient(118deg, transparent 42%, rgba(255,255,255,0.32) 47%, rgba(255,255,255,0.05) 50%, transparent 54%),
+    radial-gradient(circle at 28% 26%, rgba(255,255,255,0.5), rgba(255,255,255,0) 50%),
+    radial-gradient(ellipse 60% 45% at 84% 88%, var(--pink-4) 0%, transparent 62%),
+    linear-gradient(135deg, var(--pink-1) 0%, var(--pink-2) 38%, var(--pink-3) 68%, var(--pink-4) 100%);
 }
 
 /* ---------------------------- Custom cursor ------------------------------ */
@@ -373,9 +489,9 @@ img { max-width: 100%; display: block; }
 
 /* ============================ Responsive layout ============================ */
 
-/* Small phones, portrait */
+/* Small phones, portrait — 4 pills wrap into a 2x2 grid */
 @media (max-width: 420px) {
-  .hud { grid-template-columns: 1fr 1.4fr 0.9fr; }
+  .hud { grid-template-columns: repeat(2, 1fr); }
   .pill__label { letter-spacing: 0.04em; }
 }
 
@@ -390,10 +506,11 @@ img { max-width: 100%; display: block; }
     padding-top: env(safe-area-inset-top, 8px);
   }
   .hud {
-    width: clamp(160px, 26vw, 260px);
-    grid-template-columns: 1fr;
+    width: clamp(200px, 34vw, 300px);
+    grid-template-columns: repeat(2, 1fr);
   }
   .banner { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); width: max-content; }
+  .frenzy-tag { position: fixed; top: 6px; left: 50%; transform: translateX(-50%); width: max-content; }
   .legend { flex-direction: column; }
   :root { --board-size: min(90vh, 90vw, 560px); }
 }
@@ -405,5 +522,8 @@ img { max-width: 100%; display: block; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gem, .gem__art, .meter__fill, .banner { animation: none !important; transition: none !important; }
+  .gem, .gem__art, .meter__fill, .banner, .heart, .hud.is-frenzy .pill,
+  .frenzy-tag, .pill__value.is-urgent {
+    animation: none !important; transition: none !important;
+  }
 }
