@@ -69,6 +69,8 @@
   const tierProgressEl = document.getElementById("tierProgress");
   const hudEl = document.getElementById("hud");
   const frenzyTagEl = document.getElementById("frenzyTag");
+  const countdownOverlayEl = document.getElementById("countdownOverlay");
+  const countdownNumberEl = document.getElementById("countdownNumber");
 
   // ------------------------------ Utilities ---------------------------------
   const rand = (n) => Math.floor(Math.random() * n);
@@ -289,10 +291,26 @@
   }
 
   function updateTimerUI() {
-    timerValueEl.textContent = String(Math.max(0, Math.ceil(timeLeft)));
+    const secs = Math.max(0, Math.ceil(timeLeft));
+    timerValueEl.textContent = String(secs);
     timerValueEl.classList.toggle("is-urgent", timeLeft > 0 && timeLeft <= 10);
     tierLabelEl.textContent = round > 1 ? `${currentTier().label} · R${round}` : currentTier().label;
     tierProgressEl.textContent = `${matchesThisTier}/${currentTier().quota}`;
+
+    // Big bottom countdown for the final 10 seconds of a tier — ticks 10,
+    // 9, 8 … 0, then disappears the moment the tier resets or ends.
+    if (!gameOver && secs <= 10) {
+      const changed = countdownOverlayEl.hidden || countdownNumberEl.textContent !== String(secs);
+      countdownOverlayEl.hidden = false;
+      countdownNumberEl.textContent = String(secs);
+      if (changed) {
+        countdownOverlayEl.classList.remove("is-tick");
+        void countdownOverlayEl.offsetWidth;
+        countdownOverlayEl.classList.add("is-tick");
+      }
+    } else {
+      countdownOverlayEl.hidden = true;
+    }
   }
 
   function showBanner(text, isBonus) {
@@ -304,7 +322,7 @@
     void bannerEl.offsetWidth;
     bannerEl.style.animation = "";
     clearTimeout(showBanner._t);
-    showBanner._t = setTimeout(() => { bannerEl.hidden = true; }, 1800);
+    showBanner._t = setTimeout(() => { bannerEl.hidden = true; }, 2100);
   }
 
   // ------------------------------- Power meter ------------------------------------
@@ -381,12 +399,19 @@
       flashEl.classList.add("is-losing");
       setTimeout(() => flashEl.classList.remove("is-losing"), 500);
     }
-    updateHud();
     if (hearts <= 0) {
+      updateHud();
       triggerGameOver(reason);
-    } else if (reason === "timeout") {
+      return;
+    }
+    if (reason === "timeout") {
+      // Give the tier a completely fresh attempt — otherwise timeLeft would
+      // sit at 0 and re-fire a heart loss on every following tick.
+      matchesThisTier = 0;
+      timeLeft = currentTier().seconds;
       showBanner(`Time's up! Retry ${currentTier().label}`, true);
     }
+    updateHud();
   }
 
   function triggerGameOver(reason) {
