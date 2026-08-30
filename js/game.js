@@ -39,6 +39,10 @@
   const MODE_SWITCH_THRESHOLD = 20;
   const MODE_SCREEN_MS = 5000;
 
+  // Reward for a genuine "good move" bonus (a cascade combo, a power surge,
+  // or hitting a Frenzy streak) — a few extra seconds on the tier clock.
+  const TIME_BONUS_SECONDS = 5;
+
   let bonusWordIndex = 0;
 
   // ------------------------------- State -----------------------------------
@@ -86,6 +90,7 @@
   const modeScreenTitleEl = document.getElementById("modeScreenTitle");
   const modeScreenSubtitleEl = document.getElementById("modeScreenSubtitle");
   const modeScreenTimerEl = document.getElementById("modeScreenTimer");
+  const timeBonusEl = document.getElementById("timeBonus");
 
   // ------------------------------ Utilities ---------------------------------
   const rand = (n) => Math.floor(Math.random() * n);
@@ -363,6 +368,18 @@
     }
   }
 
+  // Rewards a bonus moment (combo, power surge, Frenzy) with extra clock
+  // time and a small floating "+5s" pop next to the timer.
+  function addTime(seconds) {
+    if (gameOver) return;
+    timeLeft += seconds;
+    updateHud();
+    timeBonusEl.textContent = `+${seconds}s`;
+    timeBonusEl.classList.remove("is-popping");
+    void timeBonusEl.offsetWidth;
+    timeBonusEl.classList.add("is-popping");
+  }
+
   function showBanner(text, isBonus) {
     bannerEl.textContent = text;
     bannerEl.classList.toggle("is-bonus", !!isBonus);
@@ -398,6 +415,7 @@
     meterWordEl.classList.add("is-visible");
     setTimeout(() => meterWordEl.classList.remove("is-visible"), 2200);
     showBanner(`Power surge! "${word}" unlocked`, true);
+    addTime(TIME_BONUS_SECONDS);
 
     const wipeRow = rand(SIZE);
     const wipeCol = rand(SIZE);
@@ -427,6 +445,7 @@
     clearTimeout(frenzyTimeout);
     frenzyTimeout = setTimeout(endFrenzy, FRENZY_DURATION_MS);
     showBanner(`FRENZY! x${FRENZY_SCORE_MULT} score, faster tiles`, false);
+    addTime(TIME_BONUS_SECONDS);
   }
 
   function endFrenzy() {
@@ -590,7 +609,10 @@
       matched = findMatches();
       combo++;
     }
-    if (combo > 2) showBanner(`Combo x${combo - 1}!`, false);
+    if (combo > 2) {
+      showBanner(`Combo x${combo - 1}!`, false);
+      addTime(TIME_BONUS_SECONDS);
+    }
   }
 
   function wait(ms) { return new Promise((res) => setTimeout(res, ms)); }

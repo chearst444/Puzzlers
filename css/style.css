@@ -130,7 +130,9 @@ img { max-width: 100%; display: block; }
 .pill--score { border-color: var(--teal-4); }
 .pill--power { border-color: var(--pink-3); background: linear-gradient(180deg, #fff, var(--ui-mint-tint)); }
 .pill--hearts { border-color: var(--pink-4); }
-.pill--timer { border-color: var(--forest-3); }
+/* Overflow:visible so the "+5s" time-bonus pop (below) isn't clipped as it
+   drifts up past the pill's own rounded-corner boundary. */
+.pill--timer { border-color: var(--forest-3); overflow: visible; }
 
 .pill__content {
   display: flex;
@@ -242,6 +244,27 @@ img { max-width: 100%; display: block; }
   animation: urgentPulse 0.5s ease-in-out infinite;
 }
 @keyframes urgentPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* Floating "+5s" pop next to the timer pill when a bonus (combo, power
+   surge, Frenzy) extends the clock. */
+.time-bonus {
+  position: absolute;
+  top: -2px;
+  right: clamp(8px, 2vw, 16px);
+  z-index: 3;
+  font-size: clamp(11px, 2.2vw, 13px);
+  font-weight: 800;
+  color: var(--teal-4);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  opacity: 0;
+  pointer-events: none;
+}
+.time-bonus.is-popping { animation: timeBonusPop 0.9s ease forwards; }
+@keyframes timeBonusPop {
+  0% { transform: translateY(6px) scale(0.9); opacity: 0; }
+  20% { transform: translateY(-2px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-20px) scale(1); opacity: 0; }
+}
 
 /* How many matches until the next Horizontal/Diagonal Time switch. */
 .mode-progress {
@@ -660,7 +683,7 @@ img { max-width: 100%; display: block; }
 @media (prefers-reduced-motion: reduce) {
   .gem, .gem__art, .meter__fill, .banner, .heart, .hud.is-frenzy .pill,
   .frenzy-tag, .pill__value.is-urgent, .countdown-overlay, .countdown-overlay__num,
-  .mode-screen__card {
+  .mode-screen__card, .time-bonus {
     animation: none !important; transition: none !important;
   }
 }
