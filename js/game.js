@@ -458,6 +458,23 @@
   }
 
   // ------------------------------- Hearts & tiers -----------------------------------
+  // The reward for the game's single biggest "good job" moment (clearing a
+  // whole tier). Heals a lost heart back; if already at full hearts the
+  // reward converts to bonus score instead so it's never wasted.
+  function gainHeart(scoreFallback) {
+    if (hearts < MAX_HEARTS) {
+      hearts++;
+      const el = heartsRowEl.children[hearts - 1];
+      if (el) {
+        el.classList.add("is-gained");
+        setTimeout(() => el.classList.remove("is-gained"), 650);
+      }
+      return true;
+    }
+    score += scoreFallback;
+    return false;
+  }
+
   function loseHeart(reason) {
     if (gameOver) return;
     hearts = Math.max(0, hearts - 1);
@@ -529,7 +546,9 @@
   function advanceTier() {
     const bonus = Math.round(timeLeft) * 15;
     score += bonus;
-    showBanner(`${currentTier().label} clear! +${bonus.toLocaleString()} bonus`, true);
+    const heartGained = gainHeart(250);
+    const suffix = heartGained ? " — bonus heart!" : " (+250, hearts full)";
+    showBanner(`${currentTier().label} clear! +${bonus.toLocaleString()} bonus${suffix}`, true);
     tierIndex++;
     if (tierIndex >= TIERS.length) {
       tierIndex = 0;
