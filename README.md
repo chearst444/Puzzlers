@@ -1,14 +1,12 @@
-# Puzzlers — Match-3 Sliding Puzzle
+# Puzzlers — Gem Match
 
 A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
-JavaScript — no build step, no dependencies. Every gem is sliced live from a
-single transparent sprite atlas (`assets/spritesheet_default.png`) and
-recolored with CSS into the game's mint/teal, forest green, and
-pink/magenta palette.
+JavaScript — no build step, no dependencies, no bitmap assets. Every gem is
+drawn as inline SVG in a Kenney-style flat-icon look (bold ink outline, flat
+fill, small gloss facet), cycling through three shapes — **gem**, **diamond**,
+and **heart** — recolored into a 5-color palette.
 
 ## Play it
-
-Serve the folder with any static file server and open `index.html`:
 
 ```bash
 python3 -m http.server 8080
@@ -17,47 +15,29 @@ python3 -m http.server 8080
 
 There's nothing to build or install.
 
+## Palette
+
+| Name             | Hex       | Role                     |
+| ---------------- | --------- | ------------------------ |
+| Tomato Red       | `#E9453A` | gem color                |
+| Squash Orange    | `#F3814D` | gem color                |
+| Marigold Yellow  | `#EBDA61` | gem color                |
+| Sky Teal         | `#44B4C4` | gem color                |
+| Olive Vine       | `#BFA749` | gem color                |
+| Blush Pink       | `#E8C4DE` | page & board background  |
+| Ink Outline      | `#2E292B` | gem strokes & grid lines |
+
 ## How it works
 
 - **Board** — an 8×8 grid (`js/game.js`) filled with gems from 3 shapes
-  (pentagon, diamond, rectangle) × 3 colorways (teal, forest, pink), seeded
-  so no match exists before the first move.
-- **Moves** — tap a gem then an adjacent one, or drag/swipe a gem into a
+  (gem, diamond, heart) × 5 colors, seeded so no match exists before the
+  first move and at least one legal move is always available.
+- **Moves** — tap/click a gem then an adjacent one, or drag a gem into a
   neighboring cell. A swap that doesn't create a match slides back.
-- **Matching** — runs of 3+ identical shape+color gems clear, remaining gems
-  fall with gravity, and the board refills from the top; chained matches
-  score combo multipliers.
-- **Power meter** — every cleared gem charges the pink power pill. At 100%
-  it unlocks a bonus word and clears a random row + column as a
-  board-clearing obstacle, then resets.
-- **Sprite slicing** — `.gem__art` elements crop shapes out of the atlas
-  with `mask-image` + fixed `mask-position`/`mask-size` (pixel-accurate,
-  same math as classic CSS background-sprites), then a plain CSS gradient
-  underneath supplies the palette color. A JS-driven `--gem-scale` custom
-  property keeps that crop crisp at any board size.
-- **Mobile** — a locked viewport meta tag, `touch-action: none` on the
-  board, and explicit `touchmove`/`gesturestart`/double-tap guards stop
-  pinch-zoom and rubber-banding so the board behaves like a native app on
-  phones; CSS media queries reflow the HUD for portrait vs. landscape.
-
-## Palette
-
-| Family | Highlight | Light | Base | Shadow |
-|---|---|---|---|---|
-| Mint & Teal | `#40E0D0` | `#2EE898` | `#16C47F` | `#0E8345` |
-| Forest & Leaf | `#33D17A` | `#1FA463` | `#0F6B38` | `#0A4220` |
-| Gemstone Pink | `#FF66B2` | `#E6397E` | `#B82A61` | `#801A42` |
-
-UI neutrals: `#FFFFFF` panel fill, `#E2F8EE` background tint, `#1A1A1A`
-borders/text.
-
-## Structure
-
-```
-index.html            App shell + HUD markup
-css/style.css          Palette, sprite-slicing, layout, responsive rules
-js/game.js              Board model, match/gravity engine, input, power-ups
-assets/
-  spritesheet_default.png   Source sprite atlas
-  spritesheet_default.xml   Atlas coordinates (Starling/Sparrow format)
-```
+- **Matching** — standard match-3 rules: runs of 3+ gems of the same color
+  (horizontal or vertical) clear, remaining gems fall with gravity, and the
+  board refills from the top. Chain reactions from a single swap score
+  increasing combo multipliers.
+- **No legal moves left** — the board silently reshuffles until a move is
+  possible again.
+- **Score** — persists a best score locally (`localStorage`) across sessions.
