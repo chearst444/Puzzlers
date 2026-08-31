@@ -1,10 +1,8 @@
-# Puzzlers — Match-3 Sliding Puzzle
+# Puzzlers — Pipe Flow
 
-A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
-JavaScript — no build step, no dependencies. Every gem is sliced live from a
-single transparent sprite atlas (`assets/spritesheet_default.png`) and
-recolored with CSS into the game's mint/teal, forest green, and
-pink/magenta palette.
+A self-contained pipe-connection puzzle built with HTML5, CSS, and vanilla
+JavaScript — no build step, no dependencies. Tap a pipe to rotate it 90° and
+route the flow from the spout to the drain without leaks.
 
 ## Play it
 
@@ -19,45 +17,55 @@ There's nothing to build or install.
 
 ## How it works
 
-- **Board** — an 8×8 grid (`js/game.js`) filled with gems from 3 shapes
-  (pentagon, diamond, rectangle) × 3 colorways (teal, forest, pink), seeded
-  so no match exists before the first move.
-- **Moves** — tap a gem then an adjacent one, or drag/swipe a gem into a
-  neighboring cell. A swap that doesn't create a match slides back.
-- **Matching** — runs of 3+ identical shape+color gems clear, remaining gems
-  fall with gravity, and the board refills from the top; chained matches
-  score combo multipliers.
-- **Power meter** — every cleared gem charges the pink power pill. At 100%
-  it unlocks a bonus word and clears a random row + column as a
-  board-clearing obstacle, then resets.
-- **Sprite slicing** — `.gem__art` elements crop shapes out of the atlas
-  with `mask-image` + fixed `mask-position`/`mask-size` (pixel-accurate,
-  same math as classic CSS background-sprites), then a plain CSS gradient
-  underneath supplies the palette color. A JS-driven `--gem-scale` custom
-  property keeps that crop crisp at any board size.
-- **Mobile** — a locked viewport meta tag, `touch-action: none` on the
-  board, and explicit `touchmove`/`gesturestart`/double-tap guards stop
-  pinch-zoom and rubber-banding so the board behaves like a native app on
-  phones; CSS media queries reflow the HUD for portrait vs. landscape.
+- **Level generation** (`js/game.js`) — each level carves a randomized
+  depth-first-search maze over an N×N grid (N grows from 5 up to 8 as the
+  level counter climbs), then walks the maze's spanning tree from the fixed
+  spout (top-left) to the fixed drain (bottom-right) to get a guaranteed
+  solvable route. Every cell on that route is assigned the exact pipe shape
+  and orientation it needs to carry the flow, every other cell gets a random
+  decoy pipe, and the route tiles' rotations are scrambled so the board never
+  starts pre-solved.
+- **Rotating** — tapping any non-fixed pipe turns it 90° clockwise with a
+  spring-eased CSS transform transition.
+- **Flow** — after every rotation, a flood fill walks outward from the spout
+  through any tile whose open side lines up with its wet neighbor's open
+  side. Every tile the flood reaches swaps from its empty sprite to its
+  flowing-liquid sprite (cross-faded) and picks up a subtle animated
+  shimmer. Reaching the drain solves the level.
+- **Win state** — the solved route glows in sequence from spout to drain,
+  confetti bursts from the drain, a "Flow Complete" toast appears, and the
+  level counter bumps before the next (slightly larger) puzzle loads.
 
-## Palette
+## Assets & palette
 
-| Family | Highlight | Light | Base | Shadow |
-|---|---|---|---|---|
-| Mint & Teal | `#40E0D0` | `#2EE898` | `#16C47F` | `#0E8345` |
-| Forest & Leaf | `#33D17A` | `#1FA463` | `#0F6B38` | `#0A4220` |
-| Gemstone Pink | `#FF66B2` | `#E6397E` | `#B82A61` | `#801A42` |
+Pipe tiles are sourced from Kenney's pipe/tile asset pack (`elbow`, `T`,
+`cross`, and `straight`, each with an *empty* and a *flowing* variant) and
+recolored offline into this game's palette — see the histogram-based swap in
+the design notes below. Recoloring works because the source art is flat-
+shaded with exactly three tonal families (a dark outline stroke, a light
+neutral pipe body, and a saturated water fill); each pixel's hue/saturation
+is swapped for the target color while its original lightness is kept, which
+preserves all of the source art's shading and highlights.
 
-UI neutrals: `#FFFFFF` panel fill, `#E2F8EE` background tint, `#1A1A1A`
-borders/text.
+| Element | Color |
+|---|---|
+| Flowing liquid | Sky Teal `#44B4C4` |
+| Pipe body | Marigold Yellow `#EBDA61` |
+| Outline / stroke | Ink Outline `#2E292B` |
+| Board tile grid | Blush Pink `#E8C4DE` |
+
+Every sprite is exported as a square canvas with its open connector nubs
+flush to the canvas edges (padding added only on the closed side), so any
+shape can be rotated in 90° steps and dropped into any grid cell and its
+pipe ends will always meet its neighbors' at the cell boundary.
 
 ## Structure
 
 ```
 index.html            App shell + HUD markup
-css/style.css          Palette, sprite-slicing, layout, responsive rules
-js/game.js              Board model, match/gravity engine, input, power-ups
-assets/
-  spritesheet_default.png   Source sprite atlas
-  spritesheet_default.xml   Atlas coordinates (Starling/Sparrow format)
+css/style.css          Palette, board grid, pipe/flow states, win animation
+js/game.js              Maze-based level generation, flow flood-fill, input
+assets/pipes/
+  pipe-<shape>-empty.png   Unfilled pipe body (straight/elbow/t/cross)
+  pipe-<shape>-flow.png    Same pipe with liquid flowing through it
 ```
