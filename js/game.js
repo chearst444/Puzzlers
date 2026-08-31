@@ -335,6 +335,24 @@
   }
 
   // --------------------------------------------------------------------------
+  // Mobile touch guards
+  // The viewport meta tag and .board's touch-action:none handle most of
+  // this, but iOS Safari doesn't reliably honor either for pinch and
+  // double-tap zoom, so block those gestures explicitly.
+  // --------------------------------------------------------------------------
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  boardEl.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1) e.preventDefault(); // pinch
+  }, { passive: false });
+
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault(); // double-tap zoom
+    lastTouchEnd = now;
+  }, false);
+
+  // --------------------------------------------------------------------------
   // Boot
   // --------------------------------------------------------------------------
   function boot() {
