@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzlers</title>
+<style>
+  :root {
+    --bg: #14141c;
+    --card: #1e1e2a;
+    --line: #05050a;
+    --teal: #60d0c0;
+    --magenta: #d840b8;
+    --yellow: #f8e060;
+    --paper: #e9e6da;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--paper);
+    font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 20px 56px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 34px;
+    letter-spacing: 4px;
+    color: var(--yellow);
+    text-shadow: 2px 2px 0 var(--line);
+  }
+  .tagline {
+    margin: 8px 0 0;
+    color: var(--teal);
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+  }
+  a.card {
+    display: block;
+    background: var(--card);
+    border: 3px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    text-decoration: none;
+    color: var(--paper);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 6px 0 var(--line);
+  }
+  a.card:hover {
+    transform: translateY(-3px);
+    border-color: var(--yellow);
+  }
+  a.card:active { transform: translateY(0); }
+  .card h2 {
+    margin: 0 0 6px;
+    font-size: 19px;
+    letter-spacing: 1.5px;
+    color: var(--yellow);
+  }
+  .card p {
+    margin: 0;
+    font-size: 13px;
+    color: #c8c6ba;
+    line-height: 1.4;
+  }
+  .swatch {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 11px;
+    color: #6c6c80;
+  }
+  footer a { color: var(--teal); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>PUZZLERS</h1>
+      <p class="tagline">Four small puzzle games</p>
+    </header>
+    <div class="grid">
+      <a class="card" href="match-3/">
+        <h2><span class="swatch" style="background:var(--magenta)"></span>Match-3</h2>
+        <p>Classic match-three, diagonal mode &mdash; only diagonal three-in-a-rows count.</p>
+      </a>
+      <a class="card" href="gem-match/">
+        <h2><span class="swatch" style="background:var(--teal)"></span>Gem Match</h2>
+        <p>A Kenney-gem match-three board, tuned and hardened for mobile touch play.</p>
+      </a>
+      <a class="card" href="pipe-flow/">
+        <h2><span class="swatch" style="background:var(--yellow)"></span>Pipe Flow</h2>
+        <p>Tap a pipe to rotate it. Route the flow from spout to drain without leaks.</p>
+      </a>
+      <a class="card" href="growth-meter/">
+        <h2><span class="swatch" style="background:var(--magenta)"></span>Growth Meter</h2>
+        <p>A Daily Bread devotional puzzle &mdash; five short stages alternating a vine-path and a memory-match puzzle, each closing with a verse.</p>
+      </a>
+    </div>
+    <footer>
+      <a href="https://github.com/chearst444/Puzzlers">chearst444/Puzzlers</a> on GitHub
+    </footer>
+  </div>
+</body>
+</html>
