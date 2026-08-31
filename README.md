@@ -1,10 +1,10 @@
-# Puzzlers — Match-3 Sliding Puzzle
+# Growth Meter — a Daily Bread devotional puzzle
 
-A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
-JavaScript — no build step, no dependencies. Every gem is sliced live from a
-single transparent sprite atlas (`assets/spritesheet_default.png`) and
-recolored with CSS into the game's mint/teal, forest green, and
-pink/magenta palette.
+A self-contained devotional mini-game built with HTML5, CSS, and vanilla
+JavaScript — no build step, no dependencies, no bitmap assets. Every visual
+(the striped growth meter, the vine tiles, the match-card icons) is drawn
+with CSS and inline SVG, recolored into the **Harvest Palette** below. It's
+part of the **Daily Bread** track: five short puzzles, five short scriptures.
 
 ## Play it
 
@@ -15,49 +15,49 @@ python3 -m http.server 8080
 # then visit http://localhost:8080
 ```
 
-There's nothing to build or install.
-
 ## How it works
 
-- **Board** — an 8×8 grid (`js/game.js`) filled with gems from 3 shapes
-  (pentagon, diamond, rectangle) × 3 colorways (teal, forest, pink), seeded
-  so no match exists before the first move.
-- **Moves** — tap a gem then an adjacent one, or drag/swipe a gem into a
-  neighboring cell. A swap that doesn't create a match slides back.
-- **Matching** — runs of 3+ identical shape+color gems clear, remaining gems
-  fall with gravity, and the board refills from the top; chained matches
-  score combo multipliers.
-- **Power meter** — every cleared gem charges the pink power pill. At 100%
-  it unlocks a bonus word and clears a random row + column as a
-  board-clearing obstacle, then resets.
-- **Sprite slicing** — `.gem__art` elements crop shapes out of the atlas
-  with `mask-image` + fixed `mask-position`/`mask-size` (pixel-accurate,
-  same math as classic CSS background-sprites), then a plain CSS gradient
-  underneath supplies the palette color. A JS-driven `--gem-scale` custom
-  property keeps that crop crisp at any board size.
-- **Mobile** — a locked viewport meta tag, `touch-action: none` on the
-  board, and explicit `touchmove`/`gesturestart`/double-tap guards stop
-  pinch-zoom and rubber-banding so the board behaves like a native app on
-  phones; CSS media queries reflow the HUD for portrait vs. landscape.
+- **Growth meter** — a horizontal striped progress bar in the style of
+  Kenney's UI progress-bar packs, rebuilt in pure CSS (`css/style.css`) so
+  it can be recolored freely: a Marigold Yellow outer frame stands in for
+  the bar's rounded end-caps, a Blush Pink inner track is the empty state,
+  and each of the 5 segments fills independently with a diagonally-striped
+  Sky Teal bar as its stage is solved.
+- **Five stages** — alternating two puzzle types, generated in
+  `js/game.js`:
+  - **Vine path** (stages 1, 3, 5) — a small grid of rotatable vine tiles.
+    Tap a tile to turn it 90°; connect the seed port to the bud port and
+    the whole run glows. Tile shapes and their solved rotation are derived
+    generically from an ordered path of grid cells, so new layouts are just
+    a list of coordinates (see `definePipePath`).
+  - **Match pairs** (stages 2, 4) — a small memory-flip board using
+    seed/rain/sun/leaf icons, each pair sharing a Harvest Palette color.
+- **Stage icons** — the row above the meter shows a seed → root → stem →
+  bud → harvest icon per stage; each turns Squash Orange once its puzzle
+  is solved.
+- **Reflections** — completing a stage's puzzle reveals a short King James
+  Version verse plus a one-line reflection tied to that stage's growth
+  metaphor, before moving on to the next. A closing "Harvest" screen
+  recaps all five once the meter is full, with a "Plant Again" reset.
+- **Mobile** — a locked viewport meta tag and `touch-action`/user-select
+  guards keep the board from pinch-zooming or rubber-banding on phones.
 
-## Palette
+## Harvest Palette
 
-| Family | Highlight | Light | Base | Shadow |
-|---|---|---|---|---|
-| Mint & Teal | `#40E0D0` | `#2EE898` | `#16C47F` | `#0E8345` |
-| Forest & Leaf | `#33D17A` | `#1FA463` | `#0F6B38` | `#0A4220` |
-| Gemstone Pink | `#FF66B2` | `#E6397E` | `#B82A61` | `#801A42` |
-
-UI neutrals: `#FFFFFF` panel fill, `#E2F8EE` background tint, `#1A1A1A`
-borders/text.
+| Name | Hex | Used for |
+|---|---|---|
+| Tomato Red | `#E9453A` | reserved accent |
+| Squash Orange | `#F3814D` | completed-stage icons, vine leaf nodes |
+| Marigold Yellow | `#EBDA61` | growth-meter end-caps, exit ports |
+| Sky Teal | `#44B4C4` | growth-meter fill, solved-vine glow, primary button |
+| Olive Vine | `#BFA749` | unsolved vine strokes, filler-cell soil dots |
+| Blush Pink | `#E8C4DE` | growth-meter track background, track-tag pill |
+| Ink Outline | `#2E292B` | text, borders |
 
 ## Structure
 
 ```
-index.html            App shell + HUD markup
-css/style.css          Palette, sprite-slicing, layout, responsive rules
-js/game.js              Board model, match/gravity engine, input, power-ups
-assets/
-  spritesheet_default.png   Source sprite atlas
-  spritesheet_default.xml   Atlas coordinates (Starling/Sparrow format)
+index.html       App shell: HUD (meter + stage icons), stage container, overlays
+css/style.css     Palette, striped-meter styling, vine/match puzzle styling
+js/game.js         Stage data, vine-path geometry engine, match engine, controller
 ```

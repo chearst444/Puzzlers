@@ -1,833 +1,384 @@
 /* =========================================================================
-   Puzzlers — Match-3 core game logic (vanilla JS, no dependencies)
+   Growth Meter — Daily Bread devotional puzzle
+   Five short stages, alternating a "vine path" rotate-to-connect puzzle
+   with a memory-match puzzle. Each solved stage fills one segment of the
+   striped growth meter and unlocks a short scripture + reflection line.
+   No build step, no dependencies — everything below is vanilla DOM + SVG.
    ========================================================================= */
-(() => {
-  "use strict";
 
-  // ------------------------------- Config ---------------------------------
-  const SIZE = 8;
-  const SHAPES = ["pentagon", "diamond", "rectangle"];
-  const COLORS = ["teal", "forest", "pink"];
-  const POINTS_PER_GEM = 10;
-  const METER_PER_GEM = 7;
-  const SWIPE_THRESHOLD_RATIO = 0.22; // fraction of a cell needed to register a swipe
-  const BONUS_WORDS = ["SPARKLE", "BLOSSOM", "AURORA", "MINTY", "RADIANT", "LAGOON", "PETAL"];
+/* ------------------------------ Directions ------------------------------- */
+const N = 0, E = 1, S = 2, W = 3;
+const DIR_VECT = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+const opposite = (d) => (d + 2) % 4;
 
-  const MAX_HEARTS = 3;
-
-  // Progressive time-attack tiers: each gets tougher — more matches, less time.
-  const TIERS = [
-    { label: "TIER 1", quota: 10, seconds: 60 },
-    { label: "TIER 2", quota: 12, seconds: 45 },
-    { label: "TIER 3", quota: 15, seconds: 30 },
-  ];
-
-  // Frenzy: every 5 consecutive successful swaps speeds animations up and
-  // boosts scoring for a few seconds.
-  const FRENZY_STREAK_STEP = 5;
-  const FRENZY_DURATION_MS = 8000;
-  const FRENZY_SCORE_MULT = 1.5;
-  const FRENZY_SPEED_MULT = 0.55; // multiplies animation durations (<1 = faster)
-
-  // Base animation durations in ms — also mirrored onto the CSS custom
-  // properties --dur-motion / --dur-clear so JS waits and CSS transitions
-  // always agree, in or out of Frenzy.
-  const ANIM = { swapMs: 220, clearMs: 260, fallMs: 300 };
-
-  // Match-mode cycle: every 20 matches in the current mode, an interstitial
-  // screen holds for 5 seconds and announces the switch to the other mode.
-  const MODE_SWITCH_THRESHOLD = 20;
-  const MODE_SCREEN_MS = 5000;
-
-  // Reward for a genuine "good move" bonus (a cascade combo, a power surge,
-  // or hitting a Frenzy streak) — a few extra seconds on the tier clock.
-  const TIME_BONUS_SECONDS = 5;
-
-  let bonusWordIndex = 0;
-
-  // ------------------------------- State -----------------------------------
-  /** board[row][col] = { id, shape, color } | null */
-  let board = [];
-  let score = 0;
-  let meter = 0;
-  let busy = false;      // true while a resolve animation sequence is running
-  let gameOver = false;
-  let gemUid = 1;
-
-  let hearts = MAX_HEARTS;
-  let tierIndex = 0;
-  let round = 1;
-  let matchesThisTier = 0;
-  let timeLeft = TIERS[0].seconds;
-  let timerInterval = null;
-
-  let matchStreak = 0;
-  let frenzyActive = false;
-  let frenzyTimeout = null;
-
-  let matchMode = "orthogonal"; // "orthogonal" (rows+columns) | "diagonal"
-  let modeMatchCount = 0;
-  let pendingModeSwitch = false;
-
-  // ------------------------------ DOM refs ----------------------------------
-  const boardEl = document.getElementById("board");
-  const scoreValueEl = document.getElementById("scoreValue");
-  const meterFillEl = document.getElementById("meterFill");
-  const meterWordEl = document.getElementById("meterWord");
-  const bannerEl = document.getElementById("banner");
-  const cursorEl = document.getElementById("cursorSprite");
-  const heartsRowEl = document.getElementById("heartsRow");
-  const timerValueEl = document.getElementById("timerValue");
-  const tierLabelEl = document.getElementById("tierLabel");
-  const tierProgressEl = document.getElementById("tierProgress");
-  const hudEl = document.getElementById("hud");
-  const frenzyTagEl = document.getElementById("frenzyTag");
-  const countdownOverlayEl = document.getElementById("countdownOverlay");
-  const countdownNumberEl = document.getElementById("countdownNumber");
-  const modeProgressEl = document.getElementById("modeProgress");
-  const modeScreenEl = document.getElementById("modeScreen");
-  const modeScreenCardEl = document.getElementById("modeScreenCard");
-  const modeScreenTitleEl = document.getElementById("modeScreenTitle");
-  const modeScreenSubtitleEl = document.getElementById("modeScreenSubtitle");
-  const modeScreenTimerEl = document.getElementById("modeScreenTimer");
-  const timeBonusEl = document.getElementById("timeBonus");
-
-  // ------------------------------ Utilities ---------------------------------
-  const rand = (n) => Math.floor(Math.random() * n);
-  const randomType = () => ({ shape: SHAPES[rand(SHAPES.length)], color: COLORS[rand(COLORS.length)] });
-  const sameType = (a, b) => !!a && !!b && a.shape === b.shape && a.color === b.color;
-  const makeGem = (type) => ({ id: gemUid++, shape: type.shape, color: type.color });
-  const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
-  const currentTier = () => TIERS[tierIndex];
-  // Frenzy-aware animation duration for a given ANIM key.
-  const dur = (key) => Math.round(ANIM[key] * (frenzyActive ? FRENZY_SPEED_MULT : 1));
-
-  function createEmptyBoard() {
-    return Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+function dirBetween(a, b) {
+  const dr = b[0] - a[0], dc = b[1] - a[1];
+  for (let d = 0; d < 4; d++) {
+    if (DIR_VECT[d][0] === dr && DIR_VECT[d][1] === dc) return d;
   }
+  throw new Error(`cells [${a}] -> [${b}] are not adjacent`);
+}
 
-  // Fill the board with random gems, rejecting any placement that would
-  // create an immediate 3-in-a-row — horizontal, vertical, or diagonal, so
-  // a reshuffle during Diagonal Time doesn't hand out a freebie either.
-  function initBoard() {
-    board = createEmptyBoard();
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        let type;
-        let tries = 0;
-        do {
-          type = randomType();
-          tries++;
-        } while (tries < 50 && (
-          (c >= 2 && sameType(type, board[r][c - 1]) && sameType(type, board[r][c - 2])) ||
-          (r >= 2 && sameType(type, board[r - 1][c]) && sameType(type, board[r - 2][c])) ||
-          (r >= 2 && c >= 2 && sameType(type, board[r - 1][c - 1]) && sameType(type, board[r - 2][c - 2])) ||
-          (r >= 2 && c + 2 < SIZE && sameType(type, board[r - 1][c + 1]) && sameType(type, board[r - 2][c + 2]))
-        ));
-        board[r][c] = makeGem(type);
-      }
+/** Classify a tile from the two sides it must connect, and find the
+ *  rotation (0-3, 90° steps clockwise) that turns the canonical art into
+ *  that shape. Canonical straight = {N,S}; canonical elbow = {N,E}. */
+function classify(sides) {
+  const [a, b] = sides;
+  if (opposite(a) === b) {
+    const set = [a, b].sort().join(',');
+    return { type: 'straight', solutionRotation: set === '0,2' ? 0 : 1 };
+  }
+  const want = [a, b].sort().join(',');
+  const elbowSets = ['0,1', '1,2', '2,3', '0,3']; // r=0..3
+  const r = elbowSets.indexOf(want);
+  return { type: 'elbow', solutionRotation: r };
+}
+
+/** Build a vine-path stage definition from a bounding grid, an ordered
+ *  path of [row,col] cells (entry to exit), and the outside border
+ *  direction the flow enters/leaves from. */
+function definePipePath(rows, cols, path, entryDir, exitDir) {
+  const cells = path.map((rc, i) => {
+    let sides;
+    if (i === 0) {
+      const outDir = path.length > 1 ? dirBetween(path[0], path[1]) : exitDir;
+      sides = [entryDir, outDir];
+    } else if (i === path.length - 1) {
+      const inDir = dirBetween(path[i - 1], path[i]);
+      sides = [opposite(inDir), exitDir];
+    } else {
+      sides = [opposite(dirBetween(path[i - 1], path[i])), dirBetween(path[i], path[i + 1])];
     }
-    if (!hasAnyMove()) initBoard(); // guarantee a playable start
-  }
+    const { type, solutionRotation } = classify(sides);
+    return { r: rc[0], c: rc[1], type, solutionRotation };
+  });
+  return {
+    rows, cols, path: cells,
+    entry: { r: path[0][0], c: path[0][1], dir: entryDir },
+    exit: { r: path[path.length - 1][0], c: path[path.length - 1][1], dir: exitDir },
+  };
+}
 
-  // --------------------------------- Render ----------------------------------
-  const cellEls = [];   // flat array of .cell elements, row-major
-  const gemEls = new Map(); // gem.id -> .gem element
+/* --------------------------------- Icons ---------------------------------
+   One line-art path per icon name, rendered two ways: `badgeIcon` uses
+   currentColor so CSS drives its state (locked/current/complete); `cardIcon`
+   paints a fixed Harvest-Palette color for the memory-match faces. */
+const ICON_PATHS = {
+  seed:    '<path d="M12 21c-4-1-6-4-6-8 0-5 3-9 6-11 3 2 6 6 6 11 0 4-2 7-6 8z"/><path d="M12 9c1-2 3-3 5-3"/>',
+  root:    '<path d="M12 3v8"/><path d="M12 11c-3 1-3 5-5 9"/><path d="M12 11c3 1 3 5 5 9"/><path d="M12 11c0 3-1 6 0 9"/>',
+  stem:    '<path d="M12 21V5"/><path d="M12 15c-3 0-5-2-5-5 3 0 5 2 5 5z"/><path d="M12 11c3 0 5-2 5-5-3 0-5 2-5 5z"/>',
+  bud:     '<path d="M12 21v-9"/><path d="M12 12c-3-1-4-4-3-7 3 0 6 2 6 5 0 1-1 2-3 2z"/>',
+  harvest: '<path d="M12 21V9"/><path d="M12 13l-4-3M12 13l4-3M12 9l-3-4M12 9l3-4"/>',
+  droplet: '<path d="M12 3c4 5 6 8.5 6 11.5A6 6 0 0 1 6 14.5C6 11.5 8 8 12 3z"/>',
+  sun:     '<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4 12H1M23 12h-3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>',
+  leaf:    '<path d="M6 20C6 10 12 4 20 4c0 8-6 14-14 14z"/><path d="M6 20c2-4 5-7 9-9"/>',
+};
+const CARD_COLORS = { seed: 'var(--squash)', droplet: 'var(--sky-teal)', sun: 'var(--marigold)', leaf: 'var(--olive)' };
 
-  function buildGrid() {
-    boardEl.innerHTML = "";
-    cellEls.length = 0;
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        const cell = document.createElement("div");
-        cell.className = "cell";
-        cell.dataset.row = r;
-        cell.dataset.col = c;
-        boardEl.appendChild(cell);
+function badgeIcon(name) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
+}
+function cardIcon(name) {
+  return `<svg viewBox="0 0 24 24" fill="none" style="stroke:${CARD_COLORS[name]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
+}
+function vineArt(type) {
+  return type === 'straight'
+    ? '<svg viewBox="0 0 100 100"><line class="vine-stroke" x1="50" y1="0" x2="50" y2="100" stroke-width="16" stroke-linecap="round"/><circle class="vine-node" cx="50" cy="50" r="7"/></svg>'
+    : '<svg viewBox="0 0 100 100"><path class="vine-stroke" d="M50 0 L50 50 L100 50" fill="none" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><circle class="vine-node" cx="50" cy="50" r="7"/></svg>';
+}
+
+/* --------------------------------- Stages --------------------------------- */
+const STAGES = [
+  {
+    key: 'seed', label: 'Seed', icon: 'seed',
+    title: 'Stage 1 · Seed', subtitle: 'Untangle the vine to the first sprout.',
+    type: 'vine',
+    pipe: definePipePath(2, 3, [[0, 0], [1, 0], [1, 1], [1, 2]], W, E),
+    verseRef: 'John 12:24',
+    verseText: '“Except a corn of wheat fall into the ground and die, it abideth alone: but if it die, it bringeth forth much fruit.”',
+    reflection: 'Growth often starts hidden, in a surrender that looks like loss.',
+  },
+  {
+    key: 'root', label: 'Root', icon: 'root',
+    title: 'Stage 2 · Root', subtitle: 'Match the pairs that steady a life.',
+    type: 'match', icons: ['seed', 'droplet', 'sun'],
+    verseRef: 'Jeremiah 17:7-8',
+    verseText: '“Blessed is the man that trusteth in the LORD... he shall be as a tree planted by the waters, that spreadeth out her roots by the river.”',
+    reflection: 'Deep roots are rarely seen — but they are what steady you in a dry year.',
+  },
+  {
+    key: 'stem', label: 'Stem', icon: 'stem',
+    title: 'Stage 3 · Stem', subtitle: 'Connect the vine, root to branch.',
+    type: 'vine',
+    pipe: definePipePath(3, 3, [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]], N, E),
+    verseRef: 'John 15:5',
+    verseText: '“I am the vine, ye are the branches: he that abideth in me, and I in him, the same bringeth forth much fruit.”',
+    reflection: 'Strength for growth flows from staying attached, not from trying harder alone.',
+  },
+  {
+    key: 'bud', label: 'Bud', icon: 'bud',
+    title: 'Stage 4 · Bud', subtitle: 'Match the pairs of a season turning.',
+    type: 'match', icons: ['seed', 'droplet', 'sun', 'leaf'],
+    verseRef: 'Philippians 1:6',
+    verseText: '“Being confident of this very thing, that he which hath begun a good work in you will perform it until the day of Jesus Christ.”',
+    reflection: 'What is only budding in you now is not finished — and it is not forgotten.',
+  },
+  {
+    key: 'harvest', label: 'Harvest', icon: 'harvest',
+    title: 'Stage 5 · Harvest', subtitle: 'Finish the longest vine of all.',
+    type: 'vine',
+    pipe: definePipePath(3, 3, [[1, 0], [0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [2, 1], [2, 0]], W, S),
+    verseRef: 'Galatians 6:9',
+    verseText: '“Let us not be weary in well doing: for in due season we shall reap, if we faint not.”',
+    reflection: 'Every unseen season of tending leads toward a season of reaping.',
+  },
+];
+
+/* ------------------------------ Vine puzzle ------------------------------- */
+function buildVineStage(container, stage, onSolved) {
+  const { rows, cols, path, entry, exit } = stage.pipe;
+  const pathMap = new Map(path.map((c) => [`${c.r},${c.c}`, c]));
+  const rotation = new Map();
+  path.forEach((c) => {
+    const symmetry = c.type === 'straight' ? 2 : 4;
+    const offsets = symmetry === 2 ? [1] : [1, 2, 3];
+    const offset = offsets[Math.floor(Math.random() * offsets.length)];
+    rotation.set(`${c.r},${c.c}`, (c.solutionRotation + offset) % 4);
+  });
+
+  container.innerHTML = '';
+  const board = document.createElement('div');
+  board.className = 'vine-board';
+  board.style.gridTemplateColumns = `repeat(${cols}, var(--vine-cell))`;
+  board.style.gridTemplateRows = `repeat(${rows}, var(--vine-cell))`;
+
+  let alreadySolved = false; // freezes the board once solved, so a click that
+                              // lands during the ~1s success delay can't undo
+                              // the connection or re-fire the reflection popup
+  const cellEls = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const key = `${r},${c}`;
+      const cell = document.createElement('div');
+      cell.className = 'vine-cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      if (pathMap.has(key)) {
+        const info = pathMap.get(key);
+        cell.classList.add('vine-cell--path');
+        const art = document.createElement('div');
+        art.className = 'vine-cell__art';
+        art.innerHTML = vineArt(info.type);
+        art.style.transform = `rotate(${rotation.get(key) * 90}deg)`;
+        cell.appendChild(art);
+        cell.addEventListener('click', () => {
+          if (alreadySolved) return;
+          const next = (rotation.get(key) + 1) % 4;
+          rotation.set(key, next);
+          art.style.transform = `rotate(${next * 90}deg)`;
+          checkSolved();
+        });
         cellEls.push(cell);
+        if (entry.r === r && entry.c === c) cell.appendChild(makePort('entry', entry.dir));
+        if (exit.r === r && exit.c === c) cell.appendChild(makePort('exit', exit.dir));
+      } else {
+        cell.classList.add('vine-cell--filler');
       }
+      board.appendChild(cell);
     }
   }
 
-  function cellAt(r, c) { return cellEls[r * SIZE + c]; }
+  const hint = document.createElement('div');
+  hint.className = 'vine-board__hint';
+  hint.textContent = 'Tap a vine to turn it.';
+  board.appendChild(hint);
+  container.appendChild(board);
 
-  function createGemEl(gem, r, c) {
-    const el = document.createElement("div");
-    el.className = "gem";
-    el.dataset.shape = gem.shape;
-    el.dataset.color = gem.color;
-    el.dataset.gemId = gem.id;
-    el.dataset.row = r;
-    el.dataset.col = c;
-    const art = document.createElement("div");
-    art.className = "gem__art";
-    el.appendChild(art);
-    attachGemInput(el);
-    return el;
-  }
-
-  // Render the full board fresh. `fallInfo` maps "r,c" -> rows-fallen, used
-  // to animate refilled/settled gems dropping into place.
-  function renderBoard(fallInfo) {
-    gemEls.forEach((el) => el.remove());
-    gemEls.clear();
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        const gem = board[r][c];
-        if (!gem) continue;
-        const el = createGemEl(gem, r, c);
-        const cell = cellAt(r, c);
-        const key = `${r},${c}`;
-        const fall = fallInfo && fallInfo.get(key);
-        if (fall) {
-          el.style.transform = `translateY(${-fall * 100}%)`;
-        }
-        cell.appendChild(el);
-        gemEls.set(gem.id, el);
-        if (fall) {
-          requestAnimationFrame(() => requestAnimationFrame(() => {
-            el.classList.add("is-falling");
-            el.style.transform = "";
-          }));
-        }
-      }
-    }
-  }
-
-  // ------------------------------ Match detection -----------------------------
-  // Runs a 3+-in-a-row scan along one ordered line of [r,c] cells (a row, a
-  // column, or a diagonal) and adds any run's coordinates to `matched`.
-  function scanLineForMatches(cells, matched) {
-    let runStart = 0;
-    for (let i = 1; i <= cells.length; i++) {
-      const cur = i < cells.length ? board[cells[i][0]][cells[i][1]] : null;
-      const [pr, pc] = cells[i - 1];
-      const prev = board[pr][pc];
-      if (!cur || !prev || !sameType(cur, prev)) {
-        if (i - runStart >= 3) {
-          for (let k = runStart; k < i; k++) matched.add(`${cells[k][0]},${cells[k][1]}`);
-        }
-        runStart = i;
-      }
-    }
-  }
-
-  // Horizontal + vertical matches — the standard rule, active during
-  // "Horizontal Time".
-  function findOrthogonalMatches() {
-    const matched = new Set();
-    for (let r = 0; r < SIZE; r++) {
-      const line = []; for (let c = 0; c < SIZE; c++) line.push([r, c]);
-      scanLineForMatches(line, matched);
-    }
-    for (let c = 0; c < SIZE; c++) {
-      const line = []; for (let r = 0; r < SIZE; r++) line.push([r, c]);
-      scanLineForMatches(line, matched);
-    }
-    return matched;
-  }
-
-  // Diagonal-only matches ('\' and '/') — the special rule during
-  // "Diagonal Time"; rows and columns don't clear at all in this mode.
-  function findDiagonalMatches() {
-    const matched = new Set();
-    for (let d = -(SIZE - 1); d <= SIZE - 1; d++) { // '\' diagonals: r - c = d
-      const line = [];
-      for (let r = 0; r < SIZE; r++) { const c = r - d; if (c >= 0 && c < SIZE) line.push([r, c]); }
-      scanLineForMatches(line, matched);
-    }
-    for (let s = 0; s <= (SIZE - 1) * 2; s++) { // '/' diagonals: r + c = s
-      const line = [];
-      for (let r = 0; r < SIZE; r++) { const c = s - r; if (c >= 0 && c < SIZE) line.push([r, c]); }
-      scanLineForMatches(line, matched);
-    }
-    return matched;
-  }
-
-  function findMatches() {
-    return matchMode === "diagonal" ? findDiagonalMatches() : findOrthogonalMatches();
-  }
-
-  function wouldMatchAt(testBoard, r, c) {
-    const gem = testBoard[r][c];
-    if (!gem) return false;
-    if (matchMode === "diagonal") {
-      let run = 1;
-      for (let k = 1; r - k >= 0 && c - k >= 0 && sameType(testBoard[r - k][c - k], gem); k++) run++;
-      for (let k = 1; r + k < SIZE && c + k < SIZE && sameType(testBoard[r + k][c + k], gem); k++) run++;
-      if (run >= 3) return true;
-      run = 1;
-      for (let k = 1; r - k >= 0 && c + k < SIZE && sameType(testBoard[r - k][c + k], gem); k++) run++;
-      for (let k = 1; r + k < SIZE && c - k >= 0 && sameType(testBoard[r + k][c - k], gem); k++) run++;
-      return run >= 3;
-    }
-    // horizontal
-    let run = 1;
-    for (let cc = c - 1; cc >= 0 && sameType(testBoard[r][cc], gem); cc--) run++;
-    for (let cc = c + 1; cc < SIZE && sameType(testBoard[r][cc], gem); cc++) run++;
-    if (run >= 3) return true;
-    // vertical
-    run = 1;
-    for (let rr = r - 1; rr >= 0 && sameType(testBoard[rr][c], gem); rr--) run++;
-    for (let rr = r + 1; rr < SIZE && sameType(testBoard[rr][c], gem); rr++) run++;
-    return run >= 3;
-  }
-
-  function hasAnyMove() {
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        if (c < SIZE - 1) {
-          swapCells(board, r, c, r, c + 1);
-          const ok = wouldMatchAt(board, r, c) || wouldMatchAt(board, r, c + 1);
-          swapCells(board, r, c, r, c + 1);
-          if (ok) return true;
-        }
-        if (r < SIZE - 1) {
-          swapCells(board, r, c, r + 1, c);
-          const ok = wouldMatchAt(board, r, c) || wouldMatchAt(board, r + 1, c);
-          swapCells(board, r, c, r + 1, c);
-          if (ok) return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  function swapCells(b, r1, c1, r2, c2) {
-    const tmp = b[r1][c1];
-    b[r1][c1] = b[r2][c2];
-    b[r2][c2] = tmp;
-  }
-
-  // --------------------------------- Gravity ----------------------------------
-  function collapseAndRefill(matchedKeys) {
-    const fallInfo = new Map();
-    for (const key of matchedKeys) {
-      const [r, c] = key.split(",").map(Number);
-      board[r][c] = null;
-    }
-    for (let c = 0; c < SIZE; c++) {
-      const survivors = [];
-      for (let r = 0; r < SIZE; r++) {
-        if (board[r][c]) survivors.push({ gem: board[r][c], oldRow: r });
-      }
-      const empty = SIZE - survivors.length;
-      const col = Array(SIZE).fill(null);
-      for (let i = 0; i < empty; i++) {
-        col[i] = makeGem(randomType());
-        fallInfo.set(`${i},${c}`, i + 1); // spawn just above the board, cascade in
-      }
-      for (let i = 0; i < survivors.length; i++) {
-        const newRow = empty + i;
-        col[newRow] = survivors[i].gem;
-        const dist = newRow - survivors[i].oldRow;
-        if (dist > 0) fallInfo.set(`${newRow},${c}`, dist);
-      }
-      for (let r = 0; r < SIZE; r++) board[r][c] = col[r];
-    }
-    return fallInfo;
-  }
-
-  // ---------------------------------- HUD ----------------------------------------
-  function updateHud() {
-    scoreValueEl.textContent = score.toLocaleString();
-    meterFillEl.style.width = `${Math.min(100, meter)}%`;
-    renderHearts();
-    updateTimerUI();
-  }
-
-  function renderHearts() {
-    const els = heartsRowEl.children;
-    for (let i = 0; i < els.length; i++) {
-      els[i].classList.toggle("is-filled", i < hearts);
-    }
-  }
-
-  function updateTimerUI() {
-    const secs = Math.max(0, Math.ceil(timeLeft));
-    timerValueEl.textContent = String(secs);
-    timerValueEl.classList.toggle("is-urgent", timeLeft > 0 && timeLeft <= 10);
-    tierLabelEl.textContent = round > 1 ? `${currentTier().label} · R${round}` : currentTier().label;
-    tierProgressEl.textContent = `${matchesThisTier}/${currentTier().quota}`;
-    modeProgressEl.textContent = `${matchMode === "diagonal" ? "◆" : "▦"} ${modeMatchCount}/${MODE_SWITCH_THRESHOLD}`;
-    modeProgressEl.classList.toggle("is-diagonal", matchMode === "diagonal");
-
-    // Big bottom countdown for the final 10 seconds of a tier — ticks 10,
-    // 9, 8 … 0, then disappears the moment the tier resets or ends.
-    if (!gameOver && secs <= 10) {
-      const changed = countdownOverlayEl.hidden || countdownNumberEl.textContent !== String(secs);
-      countdownOverlayEl.hidden = false;
-      countdownNumberEl.textContent = String(secs);
-      if (changed) {
-        countdownOverlayEl.classList.remove("is-tick");
-        void countdownOverlayEl.offsetWidth;
-        countdownOverlayEl.classList.add("is-tick");
-      }
-    } else {
-      countdownOverlayEl.hidden = true;
-    }
-  }
-
-  // Rewards a bonus moment (combo, power surge, Frenzy) with extra clock
-  // time and a small floating "+5s" pop next to the timer.
-  function addTime(seconds) {
-    if (gameOver) return;
-    timeLeft += seconds;
-    updateHud();
-    timeBonusEl.textContent = `+${seconds}s`;
-    timeBonusEl.classList.remove("is-popping");
-    void timeBonusEl.offsetWidth;
-    timeBonusEl.classList.add("is-popping");
-  }
-
-  function showBanner(text, isBonus) {
-    bannerEl.textContent = text;
-    bannerEl.classList.toggle("is-bonus", !!isBonus);
-    bannerEl.hidden = false;
-    bannerEl.style.animation = "none";
-    // restart the pop animation
-    void bannerEl.offsetWidth;
-    bannerEl.style.animation = "";
-    clearTimeout(showBanner._t);
-    showBanner._t = setTimeout(() => { bannerEl.hidden = true; }, 2100);
-  }
-
-  // ------------------------------- Power meter ------------------------------------
-  // Adds to the power meter; returns true the moment it fills so the caller
-  // can fold a bonus board-clear into the pass currently resolving.
-  function addPower(amount) {
-    meter += amount;
-    if (meter >= 100) {
-      meter -= 100;
-      updateHud();
-      return true;
-    }
-    updateHud();
-    return false;
-  }
-
-  // A "board-clearing obstacle": wipe a random full row and a random full
-  // column, unlocking the next bonus word in the power panel.
-  function triggerBonus() {
-    const word = BONUS_WORDS[bonusWordIndex % BONUS_WORDS.length];
-    bonusWordIndex++;
-    meterWordEl.textContent = word;
-    meterWordEl.classList.add("is-visible");
-    setTimeout(() => meterWordEl.classList.remove("is-visible"), 2200);
-    showBanner(`Power surge! "${word}" unlocked`, true);
-    addTime(TIME_BONUS_SECONDS);
-
-    const wipeRow = rand(SIZE);
-    const wipeCol = rand(SIZE);
-    const keys = new Set();
-    for (let c = 0; c < SIZE; c++) keys.add(`${wipeRow},${c}`);
-    for (let r = 0; r < SIZE; r++) keys.add(`${r},${wipeCol}`);
-    score += Math.round(keys.size * POINTS_PER_GEM * 2 * (frenzyActive ? FRENZY_SCORE_MULT : 1));
-    return keys;
-  }
-
-  // -------------------------------- Frenzy mechanic ---------------------------------
-  function applyAnimSpeed() {
-    boardEl.style.setProperty("--dur-motion", `${dur("fallMs")}ms`);
-    boardEl.style.setProperty("--dur-clear", `${dur("clearMs")}ms`);
-  }
-
-  function registerSuccessfulSwap() {
-    matchStreak++;
-    if (matchStreak % FRENZY_STREAK_STEP === 0) activateFrenzy();
-  }
-
-  function activateFrenzy() {
-    frenzyActive = true;
-    applyAnimSpeed();
-    hudEl.classList.add("is-frenzy");
-    frenzyTagEl.hidden = false;
-    clearTimeout(frenzyTimeout);
-    frenzyTimeout = setTimeout(endFrenzy, FRENZY_DURATION_MS);
-    showBanner(`FRENZY! x${FRENZY_SCORE_MULT} score, faster tiles`, false);
-    addTime(TIME_BONUS_SECONDS);
-  }
-
-  function endFrenzy() {
-    if (!frenzyActive) return;
-    frenzyActive = false;
-    applyAnimSpeed();
-    hudEl.classList.remove("is-frenzy");
-    frenzyTagEl.hidden = true;
-    clearTimeout(frenzyTimeout);
-  }
-
-  // ------------------------------- Hearts & tiers -----------------------------------
-  // The reward for the game's single biggest "good job" moment (clearing a
-  // whole tier). Heals a lost heart back; if already at full hearts the
-  // reward converts to bonus score instead so it's never wasted.
-  function gainHeart(scoreFallback) {
-    if (hearts < MAX_HEARTS) {
-      hearts++;
-      const el = heartsRowEl.children[hearts - 1];
-      if (el) {
-        el.classList.add("is-gained");
-        setTimeout(() => el.classList.remove("is-gained"), 650);
-      }
-      return true;
-    }
-    score += scoreFallback;
-    return false;
-  }
-
-  function loseHeart(reason) {
-    if (gameOver) return;
-    hearts = Math.max(0, hearts - 1);
-    matchStreak = 0;
-    endFrenzy();
-    const flashEl = heartsRowEl.children[hearts];
-    if (flashEl) {
-      flashEl.classList.add("is-losing");
-      setTimeout(() => flashEl.classList.remove("is-losing"), 500);
-    }
-    if (hearts <= 0) {
-      updateHud();
-      triggerGameOver(reason);
-      return;
-    }
-    if (reason === "timeout") {
-      // Give the tier a completely fresh attempt — otherwise timeLeft would
-      // sit at 0 and re-fire a heart loss on every following tick.
-      matchesThisTier = 0;
-      timeLeft = currentTier().seconds;
-      showBanner(`Time's up! Retry ${currentTier().label}`, true);
-    }
-    updateHud();
-  }
-
-  function triggerGameOver(reason) {
-    gameOver = true;
-    clearInterval(timerInterval);
-    const lead = reason === "timeout" ? "Out of time" : "Out of hearts";
-    showBanner(`${lead} — Final Score ${score.toLocaleString()}`, true);
-    setTimeout(resetRun, 2200);
-  }
-
-  function resetRun() {
-    score = 0;
-    hearts = MAX_HEARTS;
-    tierIndex = 0;
-    round = 1;
-    matchesThisTier = 0;
-    timeLeft = currentTier().seconds;
-    matchStreak = 0;
-    meter = 0;
-    gameOver = false;
-    matchMode = "orthogonal";
-    modeMatchCount = 0;
-    pendingModeSwitch = false;
-    modeScreenEl.hidden = true;
-    endFrenzy();
-    initBoard();
-    renderBoard(null);
-    updateHud();
-    startTimer();
-  }
-
-  // Timer for the active tier — pauses while a swap is mid-resolve so
-  // animation time never eats into the countdown.
-  function startTimer() {
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      if (gameOver || busy) return;
-      timeLeft = Math.max(0, timeLeft - 1);
-      updateTimerUI();
-      if (timeLeft <= 0) loseHeart("timeout");
-    }, 1000);
-  }
-
-  // Successful tier clear: time-bonus score, advance (looping tiers 1→2→3→1
-  // with the round counter climbing) and give the next tier a fresh clock.
-  function advanceTier() {
-    const bonus = Math.round(timeLeft) * 15;
-    score += bonus;
-    const heartGained = gainHeart(250);
-    const suffix = heartGained ? " — bonus heart!" : " (+250, hearts full)";
-    showBanner(`${currentTier().label} clear! +${bonus.toLocaleString()} bonus${suffix}`, true);
-    tierIndex++;
-    if (tierIndex >= TIERS.length) {
-      tierIndex = 0;
-      round++;
-    }
-    matchesThisTier = 0;
-    timeLeft = currentTier().seconds;
-  }
-
-  // ----------------------------- Match-mode cycle -----------------------------
-  const otherMode = (mode) => (mode === "diagonal" ? "orthogonal" : "diagonal");
-
-  // Every 20 matches in the current mode, hold a 5-second interstitial
-  // announcing the switch, then flip the matching rule and reset the count.
-  function showModeSwitchScreen() {
-    return new Promise((resolve) => {
-      const nextMode = otherMode(matchMode);
-      const isDiagonal = nextMode === "diagonal";
-      modeScreenCardEl.classList.toggle("is-diagonal", isDiagonal);
-      modeScreenCardEl.classList.toggle("is-orthogonal", !isDiagonal);
-      modeScreenTitleEl.textContent = isDiagonal ? "DIAGONAL TIME" : "HORIZONTAL TIME";
-      modeScreenSubtitleEl.textContent = isDiagonal
-        ? "Only diagonal 3-in-a-rows count now — rows and columns won’t clear!"
-        : "Back to normal — rows and columns count again!";
-      modeScreenEl.hidden = false;
-
-      let remaining = Math.ceil(MODE_SCREEN_MS / 1000);
-      const renderCountdown = () => { modeScreenTimerEl.textContent = `Starting in ${remaining}…`; };
-      renderCountdown();
-      const tick = setInterval(() => {
-        remaining -= 1;
-        if (remaining > 0) renderCountdown();
-      }, 1000);
-
-      setTimeout(() => {
-        clearInterval(tick);
-        modeScreenEl.hidden = true;
-        matchMode = nextMode;
-        modeMatchCount = 0;
-        pendingModeSwitch = false;
-        updateHud();
-        if (!hasAnyMove()) reshuffleBoard();
-        resolve();
-      }, MODE_SCREEN_MS);
+  function checkSolved() {
+    const solved = path.every((c) => {
+      const symmetry = c.type === 'straight' ? 2 : 4;
+      const rot = rotation.get(`${c.r},${c.c}`);
+      return ((rot - c.solutionRotation) % symmetry + symmetry) % symmetry === 0;
     });
+    if (!solved) return;
+    alreadySolved = true;
+    cellEls.forEach((cell) => cell.classList.add('is-flowing'));
+    setTimeout(onSolved, 650);
   }
+}
 
-  // ------------------------------- Resolve loop ---------------------------------
-  async function resolveBoard(initialMatches, comboStart) {
-    let matched = initialMatches;
-    let combo = comboStart || 1;
-    while (matched && matched.size > 0) {
-      const markMatched = (key) => {
-        const [r, c] = key.split(",").map(Number);
-        const el = gemEls.get(board[r][c] && board[r][c].id);
-        if (el) el.classList.add("is-matched");
-      };
-      matched.forEach(markMatched);
-      score += Math.round(matched.size * POINTS_PER_GEM * combo * (frenzyActive ? FRENZY_SCORE_MULT : 1));
-      matchesThisTier++;
-      modeMatchCount++;
-      if (modeMatchCount >= MODE_SWITCH_THRESHOLD) pendingModeSwitch = true;
+const DIR_CLASS = ['dir-n', 'dir-e', 'dir-s', 'dir-w'];
+function makePort(kind, dir) {
+  const port = document.createElement('div');
+  port.className = `vine-port vine-port--${kind} vine-port--${DIR_CLASS[dir]}`;
+  port.innerHTML = badgeIcon(kind === 'entry' ? 'seed' : 'bud');
+  return port;
+}
 
-      const clearKeys = new Set(matched);
-      if (addPower(matched.size * METER_PER_GEM)) {
-        const bonusKeys = triggerBonus();
-        bonusKeys.forEach((k) => { if (!clearKeys.has(k)) markMatched(k); clearKeys.add(k); });
+/* ----------------------------- Match puzzle -------------------------------- */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function buildMatchStage(container, stage, onSolved) {
+  const names = stage.icons;
+  const deck = shuffle(names.concat(names));
+  container.innerHTML = '';
+  const board = document.createElement('div');
+  board.className = 'match-board';
+  board.dataset.cols = names.length <= 3 ? '3' : '4';
+
+  let flipped = [];
+  let lock = false;
+  let matched = 0;
+
+  deck.forEach((name) => {
+    const card = document.createElement('div');
+    card.className = 'match-card';
+    card.innerHTML = `
+      <div class="match-card__inner">
+        <div class="match-card__face match-card__face--back"></div>
+        <div class="match-card__face match-card__face--front">${cardIcon(name)}</div>
+      </div>`;
+    card.addEventListener('click', () => {
+      if (lock || card.classList.contains('is-flipped') || card.classList.contains('is-matched')) return;
+      card.classList.add('is-flipped');
+      flipped.push({ card, name });
+      if (flipped.length < 2) return;
+      lock = true;
+      const [a, b] = flipped;
+      if (a.name === b.name) {
+        a.card.classList.add('is-matched');
+        b.card.classList.add('is-matched');
+        flipped = [];
+        lock = false;
+        matched++;
+        if (matched === names.length) setTimeout(onSolved, 400);
+      } else {
+        setTimeout(() => {
+          a.card.classList.remove('is-flipped');
+          b.card.classList.remove('is-flipped');
+          flipped = [];
+          lock = false;
+        }, 700);
       }
-      if (matchesThisTier >= currentTier().quota) advanceTier();
-      updateHud();
-      await wait(dur("clearMs"));
-
-      const fallInfo = collapseAndRefill(clearKeys);
-      renderBoard(fallInfo);
-      await wait(dur("fallMs"));
-
-      matched = findMatches();
-      combo++;
-    }
-    if (combo > 2) {
-      showBanner(`Combo x${combo - 1}!`, false);
-      addTime(TIME_BONUS_SECONDS);
-    }
-  }
-
-  function wait(ms) { return new Promise((res) => setTimeout(res, ms)); }
-
-  // -------------------------------- Interaction ---------------------------------
-  let selected = null;     // {r,c,el}
-  let dragStart = null;    // {r,c,x,y,pointerId}
-  let suppressClick = false; // set when pointerup already resolved a swipe, so the
-                              // browser's trailing synthetic "click" is a no-op
-
-  function clearSelection() {
-    if (selected) selected.el.classList.remove("is-selected");
-    selected = null;
-  }
-
-  function selectGem(r, c, el) {
-    clearSelection();
-    selected = { r, c, el };
-    el.classList.add("is-selected");
-  }
-
-  async function attemptSwap(r1, c1, r2, c2) {
-    if (busy || gameOver) return;
-    if (!inBounds(r2, c2)) return;
-    const gem1 = board[r1][c1], gem2 = board[r2][c2];
-    if (!gem1 || !gem2) return;
-    busy = true;
-
-    // Slide the two real elements toward each other first, purely visual —
-    // the model swap happens once the slide has landed.
-    const el1 = gemEls.get(gem1.id), el2 = gemEls.get(gem2.id);
-    const cellPx = boardEl.getBoundingClientRect().width / SIZE;
-    const dx = (c2 - c1) * cellPx, dy = (r2 - r1) * cellPx;
-    if (el1) { el1.classList.add("is-falling"); el1.style.transform = `translate(${dx}px, ${dy}px)`; }
-    if (el2) { el2.classList.add("is-falling"); el2.style.transform = `translate(${-dx}px, ${-dy}px)`; }
-    await wait(dur("swapMs"));
-
-    swapCells(board, r1, c1, r2, c2);
-    const matches = findMatches();
-    if (matches.size === 0) {
-      // no match — slide back to where they started, and an invalid move
-      // costs a heart per the game's balancing rules
-      if (el1) el1.style.transform = "";
-      if (el2) el2.style.transform = "";
-      await wait(dur("swapMs"));
-      if (el1) { el1.classList.remove("is-falling"); el1.classList.add("is-invalid-swap"); setTimeout(() => el1.classList.remove("is-invalid-swap"), 300); }
-      if (el2) el2.classList.remove("is-falling");
-      busy = false;
-      loseHeart("invalid");
-      return;
-    }
-    registerSuccessfulSwap();
-    renderBoard(null); // elements land exactly where the slide already placed them, no jump
-    await resolveBoard(matches, 1);
-    updateHud();
-    // Busy (and so the timer) stays true/paused through the interstitial —
-    // it's a forced break, not the player's move to spend time on.
-    if (pendingModeSwitch && !gameOver) await showModeSwitchScreen();
-    busy = false;
-    if (!gameOver && !hasAnyMove()) reshuffleBoard();
-  }
-
-  function reshuffleBoard() {
-    showBanner("No moves left — reshuffling", false);
-    initBoard();
-    renderBoard(null);
-  }
-
-  function attachGemInput(el) {
-    el.addEventListener("pointerdown", onGemPointerDown);
-    el.addEventListener("click", onGemClick);
-  }
-
-  function onGemClick(e) {
-    if (suppressClick) { suppressClick = false; return; }
-    if (busy || gameOver) return;
-    const r = Number(e.currentTarget.dataset.row);
-    const c = Number(e.currentTarget.dataset.col);
-    if (!selected) { selectGem(r, c, e.currentTarget); return; }
-    const dr = Math.abs(selected.r - r), dc = Math.abs(selected.c - c);
-    if (selected.r === r && selected.c === c) { clearSelection(); return; }
-    if (dr + dc === 1) {
-      const { r: sr, c: sc } = selected;
-      clearSelection();
-      attemptSwap(sr, sc, r, c);
-    } else {
-      selectGem(r, c, e.currentTarget);
-    }
-  }
-
-  function onGemPointerDown(e) {
-    if (busy || gameOver) return;
-    const el = e.currentTarget;
-    el.setPointerCapture(e.pointerId);
-    dragStart = {
-      r: Number(el.dataset.row), c: Number(el.dataset.col),
-      x: e.clientX, y: e.clientY, pointerId: e.pointerId,
-    };
-    cursorEl.classList.add("is-dragging");
-    el.addEventListener("pointermove", onGemPointerMove);
-    el.addEventListener("pointerup", onGemPointerUp);
-    el.addEventListener("pointercancel", onGemPointerUp);
-  }
-
-  function onGemPointerMove(e) {
-    if (!dragStart || e.pointerId !== dragStart.pointerId) return;
-    // Prevent the browser from treating this as a scroll/selection gesture.
-    e.preventDefault();
-  }
-
-  function onGemPointerUp(e) {
-    const el = e.currentTarget;
-    el.removeEventListener("pointermove", onGemPointerMove);
-    el.removeEventListener("pointerup", onGemPointerUp);
-    el.removeEventListener("pointercancel", onGemPointerUp);
-    cursorEl.classList.remove("is-dragging");
-    if (!dragStart || e.pointerId !== dragStart.pointerId) { dragStart = null; return; }
-
-    const cellPx = boardEl.getBoundingClientRect().width / SIZE;
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    const threshold = cellPx * SWIPE_THRESHOLD_RATIO;
-    const { r, c } = dragStart;
-    dragStart = null;
-
-    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
-      // Barely moved — this is a tap. Let the browser's own trailing "click"
-      // event drive tap-to-select, rather than acting twice on one gesture.
-      return;
-    }
-    suppressClick = true;
-    let dir;
-    if (Math.abs(dx) > Math.abs(dy)) dir = dx > 0 ? { dr: 0, dc: 1 } : { dr: 0, dc: -1 };
-    else dir = dy > 0 ? { dr: 1, dc: 0 } : { dr: -1, dc: 0 };
-    clearSelection();
-    attemptSwap(r, c, r + dir.dr, c + dir.dc);
-  }
-
-  // ------------------------------ Touch/zoom lockdown ------------------------------
-  function lockViewportGestures() {
-    // Belt-and-braces alongside the pointer-events handlers above: explicitly
-    // stop touchmove from scrolling/rubber-banding the page while dragging on
-    // the board, and stop iOS Safari's double-tap-to-zoom on gems.
-    boardEl.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
-    boardEl.addEventListener("touchstart", (e) => {
-      if (e.touches.length > 1) e.preventDefault(); // block pinch-zoom
-    }, { passive: false });
-    document.addEventListener("gesturestart", (e) => e.preventDefault());
-    let lastTouchEnd = 0;
-    document.addEventListener("touchend", (e) => {
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) e.preventDefault();
-      lastTouchEnd = now;
-    }, { passive: false });
-    boardEl.addEventListener("contextmenu", (e) => e.preventDefault());
-  }
-
-  // ------------------------------- Cursor follower ---------------------------------
-  function initCursorFollower() {
-    window.addEventListener("pointermove", (e) => {
-      cursorEl.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
     });
-    window.addEventListener("pointerleave", () => { cursorEl.style.opacity = "0"; });
-    window.addEventListener("pointerenter", () => { cursorEl.style.opacity = "1"; });
-  }
+    board.appendChild(card);
+  });
 
-  // ------------------------------ Responsive gem scale ------------------------------
-  // .gem__art is a fixed native-pixel box per shape (see CSS) so the sprite
-  // mask crop stays pixel-accurate; here we drive its visual size with a
-  // plain unitless transform:scale, recomputed whenever the board's actual
-  // rendered size changes (orientation change, resize, devtools, etc).
-  const GEM_BASE_PX = 64; // matches the widest native shape (the rectangle)
-  function syncGemScale() {
-    const cellPx = boardEl.getBoundingClientRect().width / SIZE;
-    if (cellPx > 0) {
-      boardEl.style.setProperty("--gem-scale", String(cellPx / GEM_BASE_PX));
-    }
-  }
+  container.appendChild(board);
+}
 
-  // ---------------------------------- Boot -----------------------------------------
-  function start() {
-    initBoard();
-    buildGrid();
-    renderBoard(null);
-    applyAnimSpeed();
-    updateHud();
-    lockViewportGestures();
-    initCursorFollower();
-    syncGemScale();
-    startTimer();
-    if (window.ResizeObserver) {
-      new ResizeObserver(syncGemScale).observe(boardEl);
-    } else {
-      window.addEventListener("resize", syncGemScale);
-    }
-  }
+/* -------------------------------- Controller -------------------------------- */
+const stageWrap = document.getElementById('stageWrap');
+const stageTitle = document.getElementById('stageTitle');
+const stageSubtitle = document.getElementById('stageSubtitle');
+const iconRow = document.getElementById('iconRow');
+const meterInner = document.getElementById('meterInner');
 
-  document.addEventListener("DOMContentLoaded", start);
-})();
+const introOverlay = document.getElementById('introOverlay');
+const reflectionOverlay = document.getElementById('reflectionOverlay');
+const harvestOverlay = document.getElementById('harvestOverlay');
+
+let segmentEls = [];
+let badgeEls = [];
+
+function buildMeter() {
+  meterInner.innerHTML = '';
+  iconRow.innerHTML = '';
+  segmentEls = STAGES.map(() => {
+    const seg = document.createElement('div');
+    seg.className = 'meter-seg';
+    seg.innerHTML = '<div class="meter-seg__fill"></div>';
+    meterInner.appendChild(seg);
+    return seg;
+  });
+  badgeEls = STAGES.map((stage) => {
+    const item = document.createElement('div');
+    item.className = 'icon-row__item';
+    const badge = document.createElement('div');
+    badge.className = 'stage-icon';
+    badge.innerHTML = badgeIcon(stage.icon);
+    item.appendChild(badge);
+    iconRow.appendChild(item);
+    return badge;
+  });
+}
+
+function refreshMeter(currentIndex) {
+  badgeEls.forEach((badge, i) => {
+    badge.classList.toggle('is-complete', i < currentIndex);
+    badge.classList.toggle('is-current', i === currentIndex);
+  });
+}
+
+let current = 0;
+
+function startStage(i) {
+  current = i;
+  const stage = STAGES[i];
+  stageTitle.textContent = stage.title;
+  stageSubtitle.textContent = stage.subtitle;
+  refreshMeter(i);
+  const onSolved = () => stageSolved(i);
+  if (stage.type === 'vine') buildVineStage(stageWrap, stage, onSolved);
+  else buildMatchStage(stageWrap, stage, onSolved);
+}
+
+function stageSolved(i) {
+  segmentEls[i].classList.add('is-filled');
+  badgeEls[i].classList.add('is-complete');
+  badgeEls[i].classList.remove('is-current');
+  const stage = STAGES[i];
+  document.getElementById('reflectionStage').textContent = `Stage ${i + 1} of ${STAGES.length}`;
+  document.getElementById('reflectionRef').textContent = stage.verseRef;
+  document.getElementById('reflectionVerse').textContent = stage.verseText;
+  document.getElementById('reflectionNote').textContent = stage.reflection;
+  const continueBtn = document.getElementById('continueBtn');
+  continueBtn.textContent = i === STAGES.length - 1 ? 'See the Harvest' : 'Continue';
+  setTimeout(() => { reflectionOverlay.hidden = false; }, 300);
+}
+
+document.getElementById('beginBtn').addEventListener('click', () => {
+  introOverlay.hidden = true;
+  startStage(0);
+});
+
+document.getElementById('continueBtn').addEventListener('click', () => {
+  reflectionOverlay.hidden = true;
+  if (current < STAGES.length - 1) {
+    startStage(current + 1);
+  } else {
+    showHarvest();
+  }
+});
+
+function showHarvest() {
+  refreshMeter(STAGES.length);
+  stageTitle.textContent = 'Harvest';
+  stageSubtitle.textContent = 'Every stage tended.';
+  stageWrap.innerHTML = '';
+  const list = document.getElementById('harvestList');
+  list.innerHTML = STAGES.map((s) => `
+    <li>
+      <div class="h-ref">${s.verseRef}</div>
+      <div class="h-verse">${s.verseText}</div>
+    </li>`).join('');
+  harvestOverlay.hidden = false;
+}
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  harvestOverlay.hidden = true;
+  buildMeter();
+  stageTitle.textContent = '';
+  stageSubtitle.textContent = '';
+  stageWrap.innerHTML = '';
+  introOverlay.hidden = false;
+});
+
+buildMeter();
+refreshMeter(0);
