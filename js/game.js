@@ -61,11 +61,25 @@ bestValueEl.textContent = best;
 
 /* ---------- layout ---------- */
 function computeCellSize() {
-  const maxW = Math.min(window.innerWidth - 32, 560);
-  const maxH = window.innerHeight - 230;
-  const available = Math.max(200, Math.min(maxW, maxH));
+  // Measure the real HUD/footer/app-padding heights (rather than a fixed
+  // offset) so the board fits without clipping in any orientation,
+  // including short phone-landscape viewports.
+  const viewportH = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  const viewportW = (window.visualViewport && window.visualViewport.width) || window.innerWidth;
+  const hudEl = document.querySelector(".hud");
+  const footEl = document.querySelector(".foot");
+  const appEl = document.getElementById("app");
+  const appStyle = getComputedStyle(appEl);
+  const vPad = parseFloat(appStyle.paddingTop) + parseFloat(appStyle.paddingBottom);
+  const gap = (parseFloat(appStyle.rowGap || appStyle.gap) || 18) * 2;
+  const hudH = hudEl ? hudEl.getBoundingClientRect().height : 60;
+  const footH = footEl ? footEl.getBoundingClientRect().height : 24;
+
+  const maxW = Math.min(viewportW - 24, 560);
+  const maxH = viewportH - vPad - gap - hudH - footH - 12;
+  const available = Math.max(130, Math.min(maxW, maxH));
   const size = Math.floor((available - PAD * 2 - GAP * (COLS - 1)) / COLS);
-  return Math.max(26, Math.min(68, size));
+  return Math.max(18, Math.min(68, size));
 }
 
 function pos(row, col) {
@@ -455,12 +469,14 @@ function findGemCoords(uid) {
 
 function onPointerDown(e) {
   if (busy) return;
+  e.preventDefault();
   const uid = Number(e.currentTarget.dataset.uid);
   const coords = findGemCoords(uid);
   if (!coords) return;
   pointer = { startX: e.clientX, startY: e.clientY, coords, moved: false };
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
 }
 
 function onPointerMove(e) {
@@ -485,8 +501,9 @@ function onPointerMove(e) {
   endPointerTracking();
 }
 
-function onPointerUp() {
-  if (pointer && !pointer.moved) {
+function onPointerUp(e) {
+  const isCancel = e && e.type === "pointercancel";
+  if (pointer && !pointer.moved && !isCancel) {
     selectGem(pointer.coords.row, pointer.coords.col);
   }
   endPointerTracking();
@@ -495,6 +512,7 @@ function onPointerUp() {
 function endPointerTracking() {
   window.removeEventListener("pointermove", onPointerMove);
   window.removeEventListener("pointerup", onPointerUp);
+  window.removeEventListener("pointercancel", onPointerUp);
   pointer = null;
 }
 
@@ -512,5 +530,20 @@ function newGame() {
 
 newGameBtn.addEventListener("click", newGame);
 window.addEventListener("resize", layoutBoard);
+window.addEventListener("orientationchange", layoutBoard);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", layoutBoard);
+}
+
+/* ---------- mobile guards: block pinch-zoom, long-press callout, drag-ghosting ---------- */
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("dragstart", (e) => e.preventDefault());
+let lastTouchEnd = 0;
+document.addEventListener("touchend", (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 300) e.preventDefault(); // stop iOS double-tap-to-zoom
+  lastTouchEnd = now;
+}, { passive: false });
 
 newGame();

@@ -26,22 +26,34 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100%;
+  overscroll-behavior: none;
   background: var(--blush-pink);
   color: var(--ink-outline);
   font-family: "Baloo 2", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
   user-select: none;
-  touch-action: none;
+  /* pan-y (not none): lets the page scroll on cramped screens instead of
+     clipping content, while the board/gems below opt out with their own
+     touch-action:none so dragging a gem never scrolls the page. */
+  touch-action: pan-y;
+  overflow-x: hidden;
 }
 
 #app {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 18px;
   padding: 18px 12px 28px;
+  padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(12px + env(safe-area-inset-left, 0px));
+  padding-right: calc(12px + env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
 }
 
 /* ---------- HUD ---------- */
@@ -118,6 +130,7 @@ html, body {
   position: relative;
   display: block;
   overflow: hidden;
+  touch-action: none;
   background: var(--blush-pink-deep);
   border: 5px solid var(--ink-outline);
   border-radius: 18px;
@@ -158,6 +171,9 @@ html, body {
   height: var(--cell-size);
   transition: transform 220ms cubic-bezier(.35,1.6,.6,1), opacity 160ms ease, left 220ms cubic-bezier(.35,1.6,.6,1), top 220ms cubic-bezier(.35,1.6,.6,1);
   cursor: pointer;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
   will-change: left, top, transform, opacity;
 }
 
@@ -214,4 +230,31 @@ html, body {
   text-align: center;
   opacity: 0.7;
   font-size: 0.85rem;
+}
+
+/* ---------- small / short screens (phones, phone landscape) ---------- */
+@media (max-width: 420px) {
+  .title { font-size: 1.3rem; }
+  .pill { min-width: 68px; padding: 5px 10px; }
+  .btn { padding: 8px 14px; font-size: 0.82rem; }
+}
+
+@media (max-height: 480px) {
+  #app { gap: 8px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .title { font-size: 1.05rem; margin-bottom: 0; }
+  .foot { font-size: 0.7rem; }
+  .foot p { margin: 2px 0; }
+}
+
+/* Very short viewports (phone landscape): the title and footer help text
+   are nice-to-haves, not load-bearing — drop them first to keep the whole
+   board on screen instead of clipped or scrolled. */
+@media (max-height: 360px) {
+  #app { gap: 4px; }
+  .title { display: none; }
+  .foot { display: none; }
+  .pill { padding: 2px 8px; min-width: 0; }
+  .pill__label { font-size: 0.55rem; }
+  .pill__value { font-size: 0.95rem; }
+  .btn { padding: 5px 10px; font-size: 0.72rem; }
 }
