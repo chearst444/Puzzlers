@@ -149,15 +149,77 @@
             #sq-open .sq-play img { width: 184px; height: 58px; }
         }
 
+        #sq-open .sq-continue {
+            position: absolute;
+            left: 50%;
+            bottom: 8%;
+            transform: translateX(-50%);
+            background: #fff6eb;
+            color: #3b2a1a;
+            border: 4px solid #8b4e1f;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(16px, 4vw, 22px);
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 12px 22px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        #sq-open .sq-howto {
+            display: none;
+            width: min(100%, 560px);
+            max-height: 92dvh;
+            overflow: auto;
+            box-sizing: border-box;
+            padding: 8px;
+        }
+        #sq-open.is-howto .sq-stage { display: none; }
+        #sq-open.is-howto .sq-howto { display: block; }
+        #sq-open .sq-howto-card {
+            background: #fff6eb;
+            color: #3b2a1a;
+            border: 4px solid #8b4e1f;
+            padding: 22px 20px 16px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #sq-open .sq-howto-card h2 {
+            margin: 0 0 12px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(22px, 5vw, 30px);
+            line-height: 1.2;
+        }
+        #sq-open .sq-howto-card p {
+            margin: 0 0 10px;
+            font-size: clamp(15px, 3.6vw, 18px);
+            line-height: 1.45;
+            text-align: left;
+        }
+        #sq-open.is-howto .sq-play {
+            position: static;
+            transform: none;
+            margin: 10px auto 0;
+            display: inline-block;
+        }
+
+
 </style>
 </head>
 <body>
 <div id="sq-open" role="dialog" aria-modal="true" aria-label="Puzzlers">
-  <div class="sq-stage">
+  <div class="sq-stage" id="sq-art-screen">
     <img class="sq-art" src="assets/opening.jpg" alt="Puzzlers">
-    <button type="button" class="sq-play" id="sq-play" aria-label="Play">
-      <img src="assets/btn_play.png" alt="PLAY" width="92" height="29">
-    </button>
+    <button type="button" class="sq-continue" id="sq-continue">Tap to continue</button>
+  </div>
+  <div class="sq-howto" id="sq-howto">
+    <div class="sq-howto-card">
+      <h2>How to play</h2>
+      <p>Slide. Match. Solve.</p>
+      <button type="button" class="sq-play" id="sq-play" aria-label="Play">
+        <img src="assets/btn_play.png" alt="PLAY" width="92" height="29">
+      </button>
+    </div>
   </div>
 </div>
 
@@ -192,19 +254,34 @@
 <script>
 (function () {
   var overlay = document.getElementById('sq-open');
+  var cont = document.getElementById('sq-continue');
   var btn = document.getElementById('sq-play');
-  if (!overlay || !btn) return;
+  var stage = overlay && overlay.querySelector('.sq-stage');
+  if (!overlay) return;
+  function goHowto(e) {
+    if (overlay.classList.contains('is-howto') || overlay.classList.contains('is-off')) return;
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    overlay.classList.add('is-howto');
+  }
   function start(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     overlay.classList.add('is-off');
     overlay.setAttribute('aria-hidden', 'true');
+    if (typeof gameState !== 'undefined' && gameState === 'TITLE') {
+      gameState = 'PLAYING';
+    }
     document.dispatchEvent(new CustomEvent('sq-play'));
   }
-  btn.addEventListener('click', start);
+  if (cont) cont.addEventListener('click', goHowto);
+  if (stage) stage.addEventListener('click', goHowto);
+  if (btn) btn.addEventListener('click', start);
   window.addEventListener('keydown', function (e) {
     if (overlay.classList.contains('is-off')) return;
-    if (e.code === 'Enter' || e.code === 'Space') start(e);
-  });
+    if (e.code === 'Enter' || e.code === 'Space') {
+      if (overlay.classList.contains('is-howto')) start(e);
+      else goHowto(e);
+    }
+  }, true);
 })();
 </script>
 
