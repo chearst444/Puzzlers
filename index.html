@@ -203,12 +203,50 @@
             display: inline-block;
         }
 
+        #sq-open .sq-studio {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #fff6eb;
+            background: rgba(26, 18, 12, 0.78);
+            border: 2px solid #e8a838;
+            padding: 4px 8px 4px 4px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            line-height: 1;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #sq-open .sq-studio svg {
+            display: block;
+            width: 22px;
+            height: 22px;
+            flex: none;
+        }
+
+
 
 </style>
 </head>
 <body>
 <div id="sq-open" role="dialog" aria-modal="true" aria-label="Puzzlers">
-  <div class="sq-stage" id="sq-art-screen">
+    <a class="sq-studio" href="https://snackquests.com" id="sq-studio">
+    <svg viewBox="0 0 64 64" width="22" height="22" aria-hidden="true" focusable="false">
+      <ellipse cx="32" cy="38" rx="20" ry="14" fill="#E8A838"/>
+      <ellipse cx="32" cy="34" rx="18" ry="11" fill="#F4B942"/>
+      <circle cx="24" cy="34" r="2.2" fill="#3B2A1A"/>
+      <circle cx="40" cy="34" r="2.2" fill="#3B2A1A"/>
+      <path d="M26 40c2 2.4 10 2.4 12 0" fill="none" stroke="#3B2A1A" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span>Snack Quests</span>
+  </a>
+<div class="sq-stage" id="sq-art-screen">
     <img class="sq-art" src="assets/opening.jpg" alt="Puzzlers">
     <button type="button" class="sq-continue" id="sq-continue">Tap to continue</button>
   </div>
