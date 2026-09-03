@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 70">
+  <defs>
+    <filter id="sketchy7" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05 0.07" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="5.5"/>
+    </filter>
+    <filter id="sketchyThin7" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.06 0.09" numOctaves="2" seed="57" result="n2"/>
+      <feDisplacementMap in="SourceGraphic" in2="n2" scale="4"/>
+    </filter>
+  </defs>
+  <g filter="url(#sketchy7)" fill="#16C47F" stroke="#1A1A1A" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="6" y="10" width="128" height="50" rx="24" ry="24"/>
+  </g>
+  <g filter="url(#sketchyThin7)" stroke="#1A1A1A" stroke-width="2.2" opacity="0.35" fill="none" stroke-linecap="round">
+    <path d="M85,25 L100,35 M80,38 L92,46" />
+  </g>
+  <g filter="url(#sketchyThin7)" stroke="#40E0D0" stroke-width="4.5" opacity="0.75" stroke-linecap="round">
+    <path d="M22,22 Q34,13 50,17" fill="none"/>
+  </g>
+</svg>

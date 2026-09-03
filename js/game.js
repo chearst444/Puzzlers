@@ -799,8 +799,8 @@
   }
 
   // ------------------------------ Responsive gem scale ------------------------------
-  // .gem__art is a fixed native-pixel box per shape (see CSS) so the sprite
-  // mask crop stays pixel-accurate; here we drive its visual size with a
+  // .gem__art is a fixed native-pixel box per shape (see CSS) so its
+  // hand-drawn art stays crisp; here we drive its visual size with a
   // plain unitless transform:scale, recomputed whenever the board's actual
   // rendered size changes (orientation change, resize, devtools, etc).
   const GEM_BASE_PX = 64; // matches the widest native shape (the rectangle)

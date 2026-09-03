@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48">
+  <defs>
+    <filter id="sk10" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.07 0.09" numOctaves="2" seed="10" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.5"/>
+    </filter>
+  </defs>
+  <g filter="url(#sk10)" fill="#FFFFFF" stroke="#1A1A1A" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M9,4 L9,34 L16,27 L21,40 L27,37 L22,25 L32,25 Z"/>
+  </g>
+</svg>
