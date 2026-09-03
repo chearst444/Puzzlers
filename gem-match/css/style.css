@@ -177,14 +177,17 @@ html, body {
   will-change: left, top, transform, opacity;
 }
 
-.gem svg {
+.gem__art {
   width: 78%;
   height: 78%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   filter: drop-shadow(0 2px 0 rgba(46,41,43,0.25));
   transition: transform 140ms ease;
 }
 
-.gem.is-selected svg {
+.gem.is-selected .gem__art {
   transform: scale(1.12);
 }
 
@@ -198,7 +201,7 @@ html, body {
   opacity: 0;
 }
 
-.gem.is-invalid svg {
+.gem.is-invalid .gem__art {
   animation: shake 320ms ease;
 }
 

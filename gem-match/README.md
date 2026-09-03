@@ -1,10 +1,12 @@
 # Puzzlers — Gem Match
 
 A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
-JavaScript — no build step, no dependencies, no bitmap assets. Every gem is
-drawn as inline SVG in a Kenney-style flat-icon look (bold ink outline, flat
-fill, small gloss facet), cycling through three shapes — **gem**, **diamond**,
-and **heart** — recolored into a 5-color palette.
+JavaScript — no build step, no dependencies. Every gem is a cropped PNG of
+an actual hand-drawn marker sketch (`assets/handmade/`, shared with the
+Match-3 game). Matching is by color; each color has its own real shape
+roster — teal/forest/pink cycle through pentagon/diamond/rectangle, while
+yellow, navy, orange, and purple each carry a single shape (circle,
+square, heart, and star respectively).
 
 ## Play it
 

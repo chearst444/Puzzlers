@@ -2,7 +2,11 @@
 
 /* ===========================================================
    Gem Match — standard match-3
-   Kenney-style gem / diamond / heart shapes, 5-color palette.
+   Handmade gem art (assets/handmade/) instead of generated SVG shapes.
+   Matching is still purely by color (see color.id below); shape is a
+   cosmetic layer on top, drawn from whichever real hand-drawn shapes
+   exist in that color - most colors only have one, teal/forest/pink
+   have all three, so those runs show a bit of shape variety too.
    =========================================================== */
 
 const ROWS = 8;
@@ -13,33 +17,18 @@ const SWAP_MS = 220;
 const CLEAR_MS = 220;
 const FALL_MS = 220;
 
+// Each color's shape roster is exactly the shapes actually drawn in that
+// color - a real crop of assets/handmade/gem-<shape>-<id>.png, not a full
+// shape x color cross product.
 const COLORS = [
-  { id: "tomato",   hex: "#E9453A" },
-  { id: "squash",   hex: "#F3814D" },
-  { id: "marigold", hex: "#EBDA61" },
-  { id: "teal",     hex: "#44B4C4" },
-  { id: "olive",    hex: "#BFA749" },
+  { id: "teal",   shapes: ["pentagon", "diamond", "rectangle"] },
+  { id: "forest", shapes: ["pentagon", "diamond", "rectangle"] },
+  { id: "pink",   shapes: ["pentagon", "diamond", "rectangle"] },
+  { id: "yellow", shapes: ["circle"] },
+  { id: "navy",   shapes: ["square"] },
+  { id: "orange", shapes: ["heart"] },
+  { id: "purple", shapes: ["star"] },
 ];
-const SHAPES = ["gem", "diamond", "heart"];
-const INK = "#2E292B";
-
-/* ---------- SVG shape templates (Kenney flat-icon style) ---------- */
-function shapeMarkup(shape, hex) {
-  const stroke = `stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"`;
-  let body = "";
-  let gloss = "";
-  if (shape === "gem") {
-    body = `<polygon points="50,6 83,29 92,56 50,96 8,56 17,29" fill="${hex}" ${stroke}/>`;
-    gloss = `<polygon points="50,6 83,29 60,34 40,20" fill="#ffffff" opacity="0.35"/>`;
-  } else if (shape === "diamond") {
-    body = `<polygon points="50,4 93,50 50,96 7,50" fill="${hex}" ${stroke}/>`;
-    gloss = `<polygon points="50,4 93,50 65,50 42,18" fill="#ffffff" opacity="0.35"/>`;
-  } else {
-    body = `<path d="M50,90 C12,63 4,34 23,19 C37,8 50,19 50,33 C50,19 63,8 77,19 C96,34 88,63 50,90 Z" fill="${hex}" ${stroke}/>`;
-    gloss = `<ellipse cx="30" cy="30" rx="9" ry="6" fill="#ffffff" opacity="0.4" transform="rotate(-30 30 30)"/>`;
-  }
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${body}${gloss}</svg>`;
-}
 
 /* ---------- state ---------- */
 const boardEl = document.getElementById("board");
@@ -121,16 +110,23 @@ function layoutBoard() {
 }
 
 /* ---------- gem factory ---------- */
+function randomShapeFor(color) {
+  const shapes = color.shapes;
+  return shapes[(Math.random() * shapes.length) | 0];
+}
 function randomGem() {
   const color = COLORS[(Math.random() * COLORS.length) | 0];
-  const shape = SHAPES[(Math.random() * SHAPES.length) | 0];
+  const shape = randomShapeFor(color);
   return { uid: uidSeq++, color, shape, el: null };
 }
 
 function createGemEl(gem, row, col) {
   const el = document.createElement("div");
   el.className = "gem";
-  el.innerHTML = shapeMarkup(gem.shape, gem.color.hex);
+  const art = document.createElement("div");
+  art.className = "gem__art";
+  art.style.backgroundImage = `url("assets/handmade/gem-${gem.shape}-${gem.color.id}.png")`;
+  el.appendChild(art);
   el.dataset.uid = gem.uid;
   const p = pos(row, col);
   el.style.left = p.left + "px";
@@ -173,7 +169,7 @@ function makeInitialBoard() {
         do {
           color = COLORS[(Math.random() * COLORS.length) | 0];
         } while (forbidden.has(color.id));
-        const shape = SHAPES[(Math.random() * SHAPES.length) | 0];
+        const shape = randomShapeFor(color);
         row.push({ uid: uidSeq++, color, shape, el: null });
       }
       board.push(row);
