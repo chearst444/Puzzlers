@@ -1,10 +1,13 @@
 # Growth Meter — a Daily Bread devotional puzzle
 
 A self-contained devotional mini-game built with HTML5, CSS, and vanilla
-JavaScript — no build step, no dependencies, no bitmap assets. Every visual
-(the striped growth meter, the vine tiles, the match-card icons) is drawn
-with CSS and inline SVG, recolored into the **Harvest Palette** below. It's
-part of the **Daily Bread** track: five short puzzles, five short scriptures.
+JavaScript — no build step, no dependencies. The vine-path tiles
+(`assets/vine/`) are hand-drawn — shared with Pipe Flow's own straight/
+elbow art, since it's the same rotate-to-connect mechanic under a
+different theme. The growth meter and match-card icons are still drawn
+with CSS and inline SVG, recolored into the **Harvest Palette** below.
+It's part of the **Daily Bread** track: five short puzzles, five short
+scriptures.
 
 ## Play it
 
