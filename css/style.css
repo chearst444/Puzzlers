@@ -1,10 +1,10 @@
 /* =========================================================================
    Puzzlers — Match-3 stylesheet
-   Handmade gem art: every shape+color combo is its own small hand-drawn SVG
-   in assets/handmade/ (a wobbly ink outline over a flat marker-color fill,
-   built with an SVG turbulence/displacement filter so every gem reads as
-   sketched rather than vector-perfect). `.gem__art` just points its
-   background-image at the right file for the gem's data-shape/data-color.
+   Handmade gem art: every shape+color combo is a cropped PNG of an actual
+   marker drawing (assets/handmade/) — real ink and paper texture, not
+   generated. `.gem__art` just points its background-image at the right
+   file for the gem's data-shape/data-color; the pointer/hand cursor
+   sprites are the one generated exception (no hand-drawn source for those).
    ========================================================================= */
 
 :root {
@@ -428,15 +428,15 @@ img { max-width: 100%; display: block; }
 /* Handmade art — one hand-drawn SVG per shape+color combo, drawn once and
    reused as-is (no runtime recoloring) since a marker drawing of a teal
    diamond and a pink diamond are genuinely different pieces of art. */
-.gem[data-shape="pentagon"][data-color="teal"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-teal.svg"); }
-.gem[data-shape="pentagon"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-forest.svg"); }
-.gem[data-shape="pentagon"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-pink.svg"); }
-.gem[data-shape="diamond"][data-color="teal"] .gem__art { background-image: url("../assets/handmade/gem-diamond-teal.svg"); }
-.gem[data-shape="diamond"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-diamond-forest.svg"); }
-.gem[data-shape="diamond"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-diamond-pink.svg"); }
-.gem[data-shape="rectangle"][data-color="teal"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-teal.svg"); }
-.gem[data-shape="rectangle"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-forest.svg"); }
-.gem[data-shape="rectangle"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-pink.svg"); }
+.gem[data-shape="pentagon"][data-color="teal"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-teal.png"); }
+.gem[data-shape="pentagon"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-forest.png"); }
+.gem[data-shape="pentagon"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-pink.png"); }
+.gem[data-shape="diamond"][data-color="teal"] .gem__art { background-image: url("../assets/handmade/gem-diamond-teal.png"); }
+.gem[data-shape="diamond"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-diamond-forest.png"); }
+.gem[data-shape="diamond"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-diamond-pink.png"); }
+.gem[data-shape="rectangle"][data-color="teal"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-teal.png"); }
+.gem[data-shape="rectangle"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-forest.png"); }
+.gem[data-shape="rectangle"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-pink.png"); }
 
 /* ---------------------------- Custom cursor ------------------------------ */
 #cursorSprite {
