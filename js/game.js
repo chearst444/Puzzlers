@@ -9,15 +9,23 @@
   // Every gem type that can spawn, as an explicit (shape, color) list rather
   // than a shape x color cross product - each is a real hand-drawn crop
   // (assets/handmade/) and not every shape was drawn in every color, so the
-  // roster is exactly the combos that actually have art: pentagon/diamond/
-  // rectangle in the game's original teal/forest/pink trio, plus circle and
-  // square in their own yellow/navy pair for extra board variety.
+  // roster is exactly the combos that actually have art. Uses every clean
+  // "blob" shape across both sprite sheets - pentagon/diamond/rectangle in
+  // the game's teal/forest/pink trio, plus circle/square/heart/star each in
+  // one accent color - while leaving out the sheets' thinner glyph marks
+  // (brackets, asterisk, caret, hash, slash) that don't read as filled game
+  // pieces at gem size. Kept at 13 types total (same as before this pass)
+  // so match odds on an 8x8 board don't get so thin the game stops feeling
+  // fair - more shapes here traded for fewer colors per shape, not a net
+  // pile-on.
   const GEM_TYPES = [
     { shape: "pentagon", color: "teal" }, { shape: "pentagon", color: "forest" }, { shape: "pentagon", color: "pink" },
     { shape: "diamond", color: "teal" }, { shape: "diamond", color: "forest" }, { shape: "diamond", color: "pink" },
     { shape: "rectangle", color: "teal" }, { shape: "rectangle", color: "forest" }, { shape: "rectangle", color: "pink" },
-    { shape: "circle", color: "yellow" }, { shape: "circle", color: "navy" },
-    { shape: "square", color: "yellow" }, { shape: "square", color: "navy" },
+    { shape: "circle", color: "yellow" },
+    { shape: "square", color: "navy" },
+    { shape: "heart", color: "orange" },
+    { shape: "star", color: "purple" },
   ];
   const POINTS_PER_GEM = 10;
   const METER_PER_GEM = 7;

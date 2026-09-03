@@ -426,14 +426,16 @@ img { max-width: 100%; display: block; }
 .gem[data-shape="rectangle"] .gem__art { width: 64px; height: 32px; }
 .gem[data-shape="circle"] .gem__art { width: 44px; height: 48px; }
 .gem[data-shape="square"] .gem__art { width: 44px; height: 44px; }
+.gem[data-shape="heart"] .gem__art { width: 44px; height: 46px; }
+.gem[data-shape="star"] .gem__art { width: 42px; height: 46px; }
 
 /* Handmade art — one cropped drawing per shape+color combo, used as-is (no
    runtime recoloring) since a marker drawing of a teal diamond and a pink
-   diamond are genuinely different pieces of art. Not every shape was drawn
-   in every color (see the GEM_TYPES list in game.js) — circle and square
-   only exist in yellow/navy, pentagon/diamond/rectangle only in
-   teal/forest/pink — so this is exactly the combos that have real art,
-   not a full cross product. */
+   diamond are genuinely different pieces of art. Each shape only has real
+   art in its own one or three colors (see the GEM_TYPES list in game.js) —
+   pentagon/diamond/rectangle in teal/forest/pink, circle in yellow, square
+   in navy, heart in orange, star in purple — so this is exactly the combos
+   that have real art, not a full cross product. */
 .gem[data-shape="pentagon"][data-color="teal"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-teal.png"); }
 .gem[data-shape="pentagon"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-forest.png"); }
 .gem[data-shape="pentagon"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-pentagon-pink.png"); }
@@ -444,9 +446,9 @@ img { max-width: 100%; display: block; }
 .gem[data-shape="rectangle"][data-color="forest"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-forest.png"); }
 .gem[data-shape="rectangle"][data-color="pink"] .gem__art { background-image: url("../assets/handmade/gem-rectangle-pink.png"); }
 .gem[data-shape="circle"][data-color="yellow"] .gem__art { background-image: url("../assets/handmade/gem-circle-yellow.png"); }
-.gem[data-shape="circle"][data-color="navy"] .gem__art { background-image: url("../assets/handmade/gem-circle-navy.png"); }
-.gem[data-shape="square"][data-color="yellow"] .gem__art { background-image: url("../assets/handmade/gem-square-yellow.png"); }
 .gem[data-shape="square"][data-color="navy"] .gem__art { background-image: url("../assets/handmade/gem-square-navy.png"); }
+.gem[data-shape="heart"][data-color="orange"] .gem__art { background-image: url("../assets/handmade/gem-heart-orange.png"); }
+.gem[data-shape="star"][data-color="purple"] .gem__art { background-image: url("../assets/handmade/gem-star-purple.png"); }
 
 /* ---------------------------- Custom cursor ------------------------------ */
 #cursorSprite {
