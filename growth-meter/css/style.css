@@ -219,12 +219,25 @@ button { font: inherit; }
 .vine-cell__art {
   width: 100%;
   height: 100%;
+  position: relative;
   transition: transform var(--dur) ease;
 }
-.vine-cell__art svg { width: 100%; height: 100%; display: block; }
-.vine-stroke { stroke: var(--olive); transition: stroke 300ms ease; }
-.vine-node { fill: var(--squash); }
-.vine-cell.is-flowing .vine-stroke { stroke: var(--sky-teal); }
+/* Hand-drawn straight/elbow art (see vineArt() in js/game.js), stacked and
+   cross-faded exactly like Pipe Flow's own wet/dry pipe layers. */
+.vine-cell__layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+.vine-cell__layer--flow {
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.vine-cell.is-flowing .vine-cell__layer--flow { opacity: 1; }
 .vine-cell.is-flowing .vine-cell__art { animation: vine-pulse 900ms ease; }
 @keyframes vine-pulse {
   0% { filter: none; }
