@@ -1,10 +1,9 @@
 # Puzzlers — Match-3 Sliding Puzzle
 
 A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
-JavaScript — no build step, no dependencies. Every gem is its own small
-hand-drawn SVG (`assets/handmade/`) — a wobbly ink outline over a flat
-marker-color fill — in the game's mint/teal, forest green, and
-pink/magenta palette.
+JavaScript — no build step, no dependencies. Every gem is a cropped PNG of
+an actual marker drawing (`assets/handmade/`) in the game's mint/teal,
+forest green, and pink/magenta palette.
 
 ## Play it
 
@@ -31,9 +30,9 @@ There's nothing to build or install.
   it unlocks a bonus word and clears a random row + column as a
   board-clearing obstacle, then resets.
 - **Handmade art** — each `.gem__art` element just points its
-  `background-image` at the hand-drawn SVG matching its shape+color (nine
-  combos total, each sketched once rather than recolored at runtime). A
-  JS-driven `--gem-scale` custom property scales it to any board size.
+  `background-image` at a cropped PNG of the real marker drawing matching
+  its shape+color (nine combos total, no runtime recoloring). A JS-driven
+  `--gem-scale` custom property scales it to any board size.
 - **Mobile** — a locked viewport meta tag, `touch-action: none` on the
   board, and explicit `touchmove`/`gesturestart`/double-tap guards stop
   pinch-zoom and rubber-banding so the board behaves like a native app on
@@ -57,5 +56,5 @@ index.html            App shell + HUD markup
 css/style.css          Palette, gem art wiring, layout, responsive rules
 js/game.js              Board model, match/gravity engine, input, power-ups
 assets/
-  handmade/                 Hand-drawn SVG gem art + cursor sprites
+  handmade/                 Hand-drawn gem art (PNG) + cursor sprites (SVG)
 ```
