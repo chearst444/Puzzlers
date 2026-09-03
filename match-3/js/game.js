@@ -6,27 +6,8 @@
 
   // ------------------------------- Config ---------------------------------
   const SIZE = 8;
-  // Every gem type that can spawn, as an explicit (shape, color) list rather
-  // than a shape x color cross product - each is a real hand-drawn crop
-  // (assets/handmade/) and not every shape was drawn in every color, so the
-  // roster is exactly the combos that actually have art. Uses every clean
-  // "blob" shape across both sprite sheets - pentagon/diamond/rectangle in
-  // the game's teal/forest/pink trio, plus circle/square/heart/star each in
-  // one accent color - while leaving out the sheets' thinner glyph marks
-  // (brackets, asterisk, caret, hash, slash) that don't read as filled game
-  // pieces at gem size. Kept at 13 types total (same as before this pass)
-  // so match odds on an 8x8 board don't get so thin the game stops feeling
-  // fair - more shapes here traded for fewer colors per shape, not a net
-  // pile-on.
-  const GEM_TYPES = [
-    { shape: "pentagon", color: "teal" }, { shape: "pentagon", color: "forest" }, { shape: "pentagon", color: "pink" },
-    { shape: "diamond", color: "teal" }, { shape: "diamond", color: "forest" }, { shape: "diamond", color: "pink" },
-    { shape: "rectangle", color: "teal" }, { shape: "rectangle", color: "forest" }, { shape: "rectangle", color: "pink" },
-    { shape: "circle", color: "yellow" },
-    { shape: "square", color: "navy" },
-    { shape: "heart", color: "orange" },
-    { shape: "star", color: "purple" },
-  ];
+  const SHAPES = ["pentagon", "diamond", "rectangle"];
+  const COLORS = ["teal", "forest", "pink"];
   const POINTS_PER_GEM = 10;
   const METER_PER_GEM = 7;
   const SWIPE_THRESHOLD_RATIO = 0.22; // fraction of a cell needed to register a swipe
@@ -113,7 +94,7 @@
 
   // ------------------------------ Utilities ---------------------------------
   const rand = (n) => Math.floor(Math.random() * n);
-  const randomType = () => GEM_TYPES[rand(GEM_TYPES.length)];
+  const randomType = () => ({ shape: SHAPES[rand(SHAPES.length)], color: COLORS[rand(COLORS.length)] });
   const sameType = (a, b) => !!a && !!b && a.shape === b.shape && a.color === b.color;
   const makeGem = (type) => ({ id: gemUid++, shape: type.shape, color: type.color });
   const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
@@ -818,8 +799,8 @@
   }
 
   // ------------------------------ Responsive gem scale ------------------------------
-  // .gem__art is a fixed native-pixel box per shape (see CSS) so its
-  // hand-drawn art stays crisp; here we drive its visual size with a
+  // .gem__art is a fixed native-pixel box per shape (see CSS) so the sprite
+  // mask crop stays pixel-accurate; here we drive its visual size with a
   // plain unitless transform:scale, recomputed whenever the board's actual
   // rendered size changes (orientation change, resize, devtools, etc).
   const GEM_BASE_PX = 64; // matches the widest native shape (the rectangle)

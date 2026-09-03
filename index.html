@@ -1,88 +1,327 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#0E8345" />
-<title>Puzzlers &mdash; Match-3</title>
-<link rel="stylesheet" href="css/style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzlers</title>
+<style>
+  :root {
+    --bg: #14141c;
+    --card: #1e1e2a;
+    --line: #05050a;
+    --teal: #60d0c0;
+    --magenta: #d840b8;
+    --yellow: #f8e060;
+    --paper: #e9e6da;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--paper);
+    font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 20px 56px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 34px;
+    letter-spacing: 4px;
+    color: var(--yellow);
+    text-shadow: 2px 2px 0 var(--line);
+  }
+  .tagline {
+    margin: 8px 0 0;
+    color: var(--teal);
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+  }
+  a.card {
+    display: block;
+    background: var(--card);
+    border: 3px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    text-decoration: none;
+    color: var(--paper);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 6px 0 var(--line);
+  }
+  a.card:hover {
+    transform: translateY(-3px);
+    border-color: var(--yellow);
+  }
+  a.card:active { transform: translateY(0); }
+  .card h2 {
+    margin: 0 0 6px;
+    font-size: 19px;
+    letter-spacing: 1.5px;
+    color: var(--yellow);
+  }
+  .card p {
+    margin: 0;
+    font-size: 13px;
+    color: #c8c6ba;
+    line-height: 1.4;
+  }
+  .swatch {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 11px;
+    color: #6c6c80;
+  }
+  footer a { color: var(--teal); }
+</style>
+<style>
+
+        #sq-open {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: #0a0a0a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        #sq-open.is-off { display: none !important; }
+        #sq-open .sq-stage {
+            position: relative;
+            width: min(100%, 1400px);
+            max-height: 100%;
+            max-height: 100dvh;
+        }
+        #sq-open .sq-art {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 100dvh;
+            object-fit: contain;
+        }
+        #sq-open.pixel .sq-art {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        #sq-open .sq-play {
+            position: absolute;
+            left: 50%;
+            bottom: 8%;
+            transform: translateX(-50%);
+            background: none;
+            border: 0;
+            padding: 12px 16px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        #sq-open .sq-play img {
+            display: block;
+            width: 276px;
+            height: 87px;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            image-rendering: -moz-crisp-edges;
+            pointer-events: none;
+        }
+        @media (max-width: 640px) {
+            #sq-open .sq-play img { width: 184px; height: 58px; }
+        }
+
+        #sq-open .sq-continue {
+            position: absolute;
+            left: 50%;
+            bottom: 8%;
+            transform: translateX(-50%);
+            background: #fff6eb;
+            color: #3b2a1a;
+            border: 4px solid #8b4e1f;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(16px, 4vw, 22px);
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            padding: 12px 22px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        #sq-open .sq-howto {
+            display: none;
+            width: min(100%, 560px);
+            max-height: 92dvh;
+            overflow: auto;
+            box-sizing: border-box;
+            padding: 8px;
+        }
+        #sq-open.is-howto .sq-stage { display: none; }
+        #sq-open.is-howto .sq-howto { display: block; }
+        #sq-open .sq-howto-card {
+            background: #fff6eb;
+            color: #3b2a1a;
+            border: 4px solid #8b4e1f;
+            padding: 22px 20px 16px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        #sq-open .sq-howto-card h2 {
+            margin: 0 0 12px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(22px, 5vw, 30px);
+            line-height: 1.2;
+        }
+        #sq-open .sq-howto-card p {
+            margin: 0 0 10px;
+            font-size: clamp(15px, 3.6vw, 18px);
+            line-height: 1.45;
+            text-align: left;
+        }
+        #sq-open.is-howto .sq-play {
+            position: static;
+            transform: none;
+            margin: 10px auto 0;
+            display: inline-block;
+        }
+
+        #sq-open .sq-studio {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #fff6eb;
+            background: rgba(26, 18, 12, 0.78);
+            border: 2px solid #e8a838;
+            padding: 4px 8px 4px 4px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            line-height: 1;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #sq-open .sq-studio svg {
+            display: block;
+            width: 22px;
+            height: 22px;
+            flex: none;
+        }
+
+
+
+</style>
 </head>
 <body>
-<div id="app">
-
-  <header id="hud" class="hud">
-    <div class="pill pill--score" id="scorePanel" aria-label="Score panel">
-      <div class="pill__content">
-        <span class="pill__label">SCORE</span>
-        <span class="pill__value" id="scoreValue">0</span>
-      </div>
+<div id="sq-open" role="dialog" aria-modal="true" aria-label="Puzzlers">
+    <a class="sq-studio" href="https://snackquests.com" id="sq-studio">
+    <svg viewBox="0 0 64 64" width="22" height="22" aria-hidden="true" focusable="false">
+      <ellipse cx="32" cy="38" rx="20" ry="14" fill="#E8A838"/>
+      <ellipse cx="32" cy="34" rx="18" ry="11" fill="#F4B942"/>
+      <circle cx="24" cy="34" r="2.2" fill="#3B2A1A"/>
+      <circle cx="40" cy="34" r="2.2" fill="#3B2A1A"/>
+      <path d="M26 40c2 2.4 10 2.4 12 0" fill="none" stroke="#3B2A1A" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span>Snack Quests</span>
+  </a>
+<div class="sq-stage" id="sq-art-screen">
+    <img class="sq-art" src="assets/opening.jpg" alt="Puzzlers">
+    <button type="button" class="sq-continue" id="sq-continue">Tap to continue</button>
+  </div>
+  <div class="sq-howto" id="sq-howto">
+    <div class="sq-howto-card">
+      <h2>How to play</h2>
+      <p>Slide. Match. Solve.</p>
+      <button type="button" class="sq-play" id="sq-play" aria-label="Play">
+        <img src="assets/btn_play.png" alt="PLAY" width="92" height="29">
+      </button>
     </div>
-
-    <div class="pill pill--hearts" id="heartsPanel" aria-label="Lives panel">
-      <div class="pill__content">
-        <span class="pill__label">LIVES</span>
-        <div class="hearts" id="heartsRow">
-          <span class="heart is-filled"></span>
-          <span class="heart is-filled"></span>
-          <span class="heart is-filled"></span>
-        </div>
-      </div>
-    </div>
-
-    <div class="pill pill--timer" id="timerPanel" aria-label="Time-attack tier panel">
-      <span class="time-bonus" id="timeBonus"></span>
-      <div class="pill__content">
-        <span class="pill__label" id="tierLabel">TIER 1</span>
-        <div class="timer-row">
-          <span class="pill__value" id="timerValue">60</span>
-          <span class="timer-progress" id="tierProgress">0/10</span>
-        </div>
-        <span class="mode-progress" id="modeProgress">▦ 0/20</span>
-      </div>
-    </div>
-
-    <div class="pill pill--power" id="powerPanel" aria-label="Power meter panel">
-      <div class="pill__content pill__content--power">
-        <span class="pill__label">POWER</span>
-        <div class="meter" id="meterTrack">
-          <div class="meter__fill" id="meterFill"></div>
-          <span class="meter__word" id="meterWord"></span>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <div id="frenzyTag" class="frenzy-tag" hidden>FRENZY</div>
-  <div id="banner" class="banner" hidden></div>
-
-  <main id="boardWrap" class="board-wrap">
-    <div id="board" class="board" role="grid" aria-label="Match-3 game board"></div>
-  </main>
-
-  <footer class="legend" aria-hidden="true">
-    <span class="legend__chip legend__chip--teal"></span>
-    <span class="legend__chip legend__chip--forest"></span>
-    <span class="legend__chip legend__chip--pink"></span>
-  </footer>
-
-</div>
-
-<div id="countdownOverlay" class="countdown-overlay" hidden>
-  <span class="countdown-overlay__num" id="countdownNumber">10</span>
-</div>
-
-<div id="modeScreen" class="mode-screen" hidden>
-  <div class="mode-screen__card" id="modeScreenCard">
-    <div class="mode-screen__title" id="modeScreenTitle">DIAGONAL TIME</div>
-    <p class="mode-screen__subtitle" id="modeScreenSubtitle">Only diagonal 3-in-a-rows count now.</p>
-    <div class="mode-screen__timer" id="modeScreenTimer">Starting in 5&hellip;</div>
   </div>
 </div>
 
-<div id="cursorSprite" aria-hidden="true"></div>
-<script src="js/game.js"></script>
+  <div class="wrap">
+    <header>
+      <h1>PUZZLERS</h1>
+      <p class="tagline">Four small puzzle games</p>
+    </header>
+    <div class="grid">
+      <a class="card" href="match-3/">
+        <h2><span class="swatch" style="background:var(--magenta)"></span>Match-3</h2>
+        <p>Classic match-three, diagonal mode &mdash; only diagonal three-in-a-rows count.</p>
+      </a>
+      <a class="card" href="gem-match/">
+        <h2><span class="swatch" style="background:var(--teal)"></span>Gem Match</h2>
+        <p>A Kenney-gem match-three board, tuned and hardened for mobile touch play.</p>
+      </a>
+      <a class="card" href="pipe-flow/">
+        <h2><span class="swatch" style="background:var(--yellow)"></span>Pipe Flow</h2>
+        <p>Tap a pipe to rotate it. Route the flow from spout to drain without leaks.</p>
+      </a>
+      <a class="card" href="growth-meter/">
+        <h2><span class="swatch" style="background:var(--magenta)"></span>Growth Meter</h2>
+        <p>A Daily Bread devotional puzzle &mdash; five short stages alternating a vine-path and a memory-match puzzle, each closing with a verse.</p>
+      </a>
+    </div>
+    <footer>
+      <a href="https://github.com/chearst444/Puzzlers">chearst444/Puzzlers</a> on GitHub
+    </footer>
+  </div>
+
+<script>
+(function () {
+  var overlay = document.getElementById('sq-open');
+  var cont = document.getElementById('sq-continue');
+  var btn = document.getElementById('sq-play');
+  var stage = overlay && overlay.querySelector('.sq-stage');
+  if (!overlay) return;
+  function goHowto(e) {
+    if (overlay.classList.contains('is-howto') || overlay.classList.contains('is-off')) return;
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    overlay.classList.add('is-howto');
+  }
+  function start(e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    overlay.classList.add('is-off');
+    overlay.setAttribute('aria-hidden', 'true');
+    if (typeof gameState !== 'undefined' && gameState === 'TITLE') {
+      gameState = 'PLAYING';
+    }
+    document.dispatchEvent(new CustomEvent('sq-play'));
+  }
+  if (cont) cont.addEventListener('click', goHowto);
+  if (stage) stage.addEventListener('click', goHowto);
+  if (btn) btn.addEventListener('click', start);
+  window.addEventListener('keydown', function (e) {
+    if (overlay.classList.contains('is-off')) return;
+    if (e.code === 'Enter' || e.code === 'Space') {
+      if (overlay.classList.contains('is-howto')) start(e);
+      else goHowto(e);
+    }
+  }, true);
+})();
+</script>
+
 </body>
 </html>

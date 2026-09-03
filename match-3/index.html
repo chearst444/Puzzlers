@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0E8345" />
+<title>Puzzlers &mdash; Match-3</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <header id="hud" class="hud">
+    <div class="pill pill--score" id="scorePanel" aria-label="Score panel">
+      <div class="pill__content">
+        <span class="pill__label">SCORE</span>
+        <span class="pill__value" id="scoreValue">0</span>
+      </div>
+    </div>
+
+    <div class="pill pill--hearts" id="heartsPanel" aria-label="Lives panel">
+      <div class="pill__content">
+        <span class="pill__label">LIVES</span>
+        <div class="hearts" id="heartsRow">
+          <span class="heart is-filled"></span>
+          <span class="heart is-filled"></span>
+          <span class="heart is-filled"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pill pill--timer" id="timerPanel" aria-label="Time-attack tier panel">
+      <span class="time-bonus" id="timeBonus"></span>
+      <div class="pill__content">
+        <span class="pill__label" id="tierLabel">TIER 1</span>
+        <div class="timer-row">
+          <span class="pill__value" id="timerValue">60</span>
+          <span class="timer-progress" id="tierProgress">0/10</span>
+        </div>
+        <span class="mode-progress" id="modeProgress">▦ 0/20</span>
+      </div>
+    </div>
+
+    <div class="pill pill--power" id="powerPanel" aria-label="Power meter panel">
+      <div class="pill__content pill__content--power">
+        <span class="pill__label">POWER</span>
+        <div class="meter" id="meterTrack">
+          <div class="meter__fill" id="meterFill"></div>
+          <span class="meter__word" id="meterWord"></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="frenzyTag" class="frenzy-tag" hidden>FRENZY</div>
+  <div id="banner" class="banner" hidden></div>
+
+  <main id="boardWrap" class="board-wrap">
+    <div id="board" class="board" role="grid" aria-label="Match-3 game board"></div>
+  </main>
+
+  <footer class="legend" aria-hidden="true">
+    <span class="legend__chip legend__chip--teal"></span>
+    <span class="legend__chip legend__chip--forest"></span>
+    <span class="legend__chip legend__chip--pink"></span>
+  </footer>
+
+</div>
+
+<div id="countdownOverlay" class="countdown-overlay" hidden>
+  <span class="countdown-overlay__num" id="countdownNumber">10</span>
+</div>
+
+<div id="modeScreen" class="mode-screen" hidden>
+  <div class="mode-screen__card" id="modeScreenCard">
+    <div class="mode-screen__title" id="modeScreenTitle">DIAGONAL TIME</div>
+    <p class="mode-screen__subtitle" id="modeScreenSubtitle">Only diagonal 3-in-a-rows count now.</p>
+    <div class="mode-screen__timer" id="modeScreenTimer">Starting in 5&hellip;</div>
+  </div>
+</div>
+
+<div id="cursorSprite" aria-hidden="true"></div>
+<script src="js/game.js"></script>
+</body>
+</html>

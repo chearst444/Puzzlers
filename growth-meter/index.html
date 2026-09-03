@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#44B4C4" />
+<title>Growth Meter &mdash; Daily Bread Puzzle</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+
+  <header class="hud">
+    <span class="track-tag">Daily Bread &middot; Growth Meter</span>
+
+    <div class="meter-wrap" role="group" aria-label="Growth progress">
+      <div class="icon-row" id="iconRow"></div>
+      <div class="meter" id="meter">
+        <div class="meter__inner" id="meterInner"></div>
+      </div>
+    </div>
+
+    <div class="stage-info">
+      <h1 class="stage-info__title" id="stageTitle">&nbsp;</h1>
+      <p class="stage-info__subtitle" id="stageSubtitle">&nbsp;</p>
+    </div>
+  </header>
+
+  <main id="stageWrap" class="stage-wrap" aria-label="Puzzle stage"></main>
+
+</div>
+
+<div id="introOverlay" class="overlay" role="dialog" aria-modal="true">
+  <div class="overlay__card">
+    <p class="overlay__eyebrow">Daily Bread &middot; a growth-meter devotional</p>
+    <h2 class="overlay__title">Tend the Growth Meter</h2>
+    <p class="overlay__body">
+      Five small puzzles, five small steps. Untangle a vine path or match the
+      seasons of growing, and watch the meter fill. Each stage you complete
+      uncovers a short scripture to carry with you.
+    </p>
+    <button class="btn btn--primary" id="beginBtn" type="button">Begin</button>
+  </div>
+</div>
+
+<div id="reflectionOverlay" class="overlay" role="dialog" aria-modal="true" hidden>
+  <div class="overlay__card">
+    <p class="overlay__eyebrow" id="reflectionStage">Stage 1 of 5</p>
+    <h2 class="overlay__title" id="reflectionRef">Reference</h2>
+    <p class="overlay__verse" id="reflectionVerse">&ldquo;&rdquo;</p>
+    <p class="overlay__body" id="reflectionNote"></p>
+    <button class="btn btn--primary" id="continueBtn" type="button">Continue</button>
+  </div>
+</div>
+
+<div id="harvestOverlay" class="overlay" role="dialog" aria-modal="true" hidden>
+  <div class="overlay__card overlay__card--wide">
+    <p class="overlay__eyebrow">Growth Meter complete</p>
+    <h2 class="overlay__title">The Harvest</h2>
+    <p class="overlay__body">
+      Every stage is tended. Here is what you gathered along the way:
+    </p>
+    <ol class="harvest-list" id="harvestList"></ol>
+    <button class="btn btn--primary" id="restartBtn" type="button">Plant Again</button>
+  </div>
+</div>
+
+<script src="js/game.js"></script>
+</body>
+</html>

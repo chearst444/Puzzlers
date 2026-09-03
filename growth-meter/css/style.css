@@ -1,0 +1,420 @@
+/* =========================================================================
+   Growth Meter — Daily Bread devotional puzzle
+   A striped "growth meter" (recolored Kenney progress-bar styling, built in
+   pure CSS since no bitmap asset ships in this repo) fills in five segments
+   as the player clears five small vine-path / memory-match puzzles. Every
+   completed segment unlocks a short scripture + reflection line.
+
+   Harvest Palette:
+     Tomato Red    #E9453A   Squash Orange #F3814D   Marigold Yellow #EBDA61
+     Sky Teal      #44B4C4   Olive Vine    #BFA749    Blush Pink      #E8C4DE
+     Ink Outline   #2E292B
+   ========================================================================= */
+
+:root {
+  --tomato:   #E9453A;
+  --squash:   #F3814D;
+  --marigold: #EBDA61;
+  --sky-teal: #44B4C4;
+  --olive:    #BFA749;
+  --blush:    #E8C4DE;
+  --ink:      #2E292B;
+
+  --paper: #FFF8EF;
+  --card:  #FFFFFF;
+
+  --dur: 260ms;
+  color-scheme: light;
+}
+
+/* --------------------------------- Reset -------------------------------- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: none;
+  background: var(--paper);
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+h1, h2, p { margin: 0; }
+button { font: inherit; }
+
+/* ------------------------------- App shell ------------------------------- */
+#app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
+  gap: 18px;
+}
+
+.hud {
+  width: min(94vw, 640px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.track-tag {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--blush);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 4px 14px;
+}
+
+/* --------------------------------- Meter ---------------------------------
+   Outer shell = Marigold Yellow, standing in for the rounded end-cap pieces
+   of a Kenney striped progress bar. Inset track = Blush Pink background.
+   Each of the 5 segments fills independently with a striped Sky Teal bar. */
+.meter-wrap { display: flex; flex-direction: column; gap: 6px; }
+
+.icon-row {
+  display: flex;
+}
+.icon-row__item {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+.stage-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  border: 2.5px solid var(--ink);
+  color: var(--ink);
+  transition: background var(--dur) ease, border-color var(--dur) ease, transform var(--dur) ease;
+}
+.stage-icon svg { width: 16px; height: 16px; display: block; }
+.stage-icon.is-current {
+  border-color: var(--sky-teal);
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px rgba(68, 180, 196, 0.25);
+}
+.stage-icon.is-complete {
+  background: var(--squash);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.meter {
+  padding: 5px;
+  background: var(--marigold);
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.08);
+}
+.meter__inner {
+  display: flex;
+  background: var(--blush);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1.5px solid rgba(46,41,43,0.35);
+  height: 22px;
+}
+.meter-seg {
+  flex: 1;
+  position: relative;
+  border-right: 2px solid rgba(46,41,43,0.35);
+}
+.meter-seg:last-child { border-right: none; }
+.meter-seg__fill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255,255,255,0.32) 0 8px,
+      rgba(255,255,255,0) 8px 16px
+    ),
+    var(--sky-teal);
+  transition: width 900ms cubic-bezier(.22,.9,.3,1);
+}
+.meter-seg.is-filled .meter-seg__fill { width: 100%; }
+
+.stage-info { text-align: center; min-height: 44px; }
+.stage-info__title {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.stage-info__subtitle {
+  font-size: 13px;
+  color: rgba(46,41,43,0.7);
+  margin-top: 2px;
+}
+
+/* ------------------------------- Stage wrap ------------------------------- */
+.stage-wrap {
+  width: min(94vw, 520px);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* ------------------------------ Vine puzzle -------------------------------
+   Each grid cell is a rotatable "vine" tile. Unsolved sides render in Olive
+   Vine; once the whole path connects, the run glows Sky Teal with Squash
+   Orange leaf nodes at every bend. */
+.vine-board {
+  --vine-cell: 78px;
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 20px;
+  background: var(--card);
+  border: 2.5px solid var(--ink);
+  border-radius: 20px;
+  box-shadow: 0 6px 0 rgba(46,41,43,0.12);
+}
+.vine-cell {
+  width: var(--vine-cell);
+  height: var(--vine-cell);
+  border-radius: 12px;
+  background: var(--paper);
+  border: 2px solid rgba(46,41,43,0.18);
+  position: relative;
+}
+.vine-cell--path {
+  cursor: pointer;
+  background: #FFFDF8;
+  border-color: rgba(46,41,43,0.3);
+}
+.vine-cell--path:active { transform: scale(0.96); }
+.vine-cell--filler {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vine-cell--filler::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(191,167,73,0.45); /* olive dot: soil */
+}
+.vine-cell__art {
+  width: 100%;
+  height: 100%;
+  transition: transform var(--dur) ease;
+}
+.vine-cell__art svg { width: 100%; height: 100%; display: block; }
+.vine-stroke { stroke: var(--olive); transition: stroke 300ms ease; }
+.vine-node { fill: var(--squash); }
+.vine-cell.is-flowing .vine-stroke { stroke: var(--sky-teal); }
+.vine-cell.is-flowing .vine-cell__art { animation: vine-pulse 900ms ease; }
+@keyframes vine-pulse {
+  0% { filter: none; }
+  40% { filter: drop-shadow(0 0 6px rgba(68,180,196,0.9)); }
+  100% { filter: none; }
+}
+
+.vine-port {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.vine-port--entry { background: var(--squash); color: var(--paper); }
+.vine-port--exit { background: var(--marigold); color: var(--ink); }
+.vine-port svg { width: 11px; height: 11px; }
+.vine-port--dir-n { top: -10px; left: 50%; transform: translateX(-50%); }
+.vine-port--dir-s { bottom: -10px; left: 50%; transform: translateX(-50%); }
+.vine-port--dir-e { right: -10px; top: 50%; transform: translateY(-50%); }
+.vine-port--dir-w { left: -10px; top: 50%; transform: translateY(-50%); }
+
+.vine-board__hint {
+  position: absolute;
+  bottom: -30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: rgba(46,41,43,0.65);
+}
+
+/* ------------------------------ Match puzzle ------------------------------- */
+.match-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+.match-board[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
+
+.match-card {
+  aspect-ratio: 3 / 4;
+  perspective: 700px;
+  cursor: pointer;
+}
+.match-card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--dur) ease;
+  border-radius: 14px;
+}
+.match-card.is-flipped .match-card__inner,
+.match-card.is-matched .match-card__inner { transform: rotateY(180deg); }
+
+.match-card__face {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 2.5px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+}
+.match-card__face--back {
+  background: var(--blush);
+  background-image: repeating-linear-gradient(
+    -45deg, rgba(46,41,43,0.06) 0 6px, transparent 6px 12px
+  );
+}
+.match-card__face--back::after {
+  content: "";
+  width: 40%;
+  height: 40%;
+  border-radius: 50%;
+  border: 3px solid rgba(46,41,43,0.25);
+}
+.match-card__face--front {
+  background: var(--card);
+  transform: rotateY(180deg);
+}
+.match-card__face--front svg { width: 56%; height: 56%; }
+.match-card.is-matched .match-card__face--front {
+  background: #FFF3E4;
+  border-color: var(--squash);
+}
+.match-card.is-matched { cursor: default; }
+
+/* --------------------------------- Overlays -------------------------------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(46,41,43,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 20;
+}
+.overlay[hidden] { display: none; }
+.overlay__card {
+  width: min(92vw, 420px);
+  background: var(--card);
+  border: 2.5px solid var(--ink);
+  border-radius: 20px;
+  padding: 26px 24px;
+  box-shadow: 0 10px 0 rgba(46,41,43,0.18);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 86vh;
+  overflow-y: auto;
+}
+.overlay__card--wide { width: min(92vw, 480px); }
+.overlay__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--squash);
+}
+.overlay__title { font-size: 24px; font-weight: 800; }
+.overlay__verse {
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--blush);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.overlay__body {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: rgba(46,41,43,0.85);
+}
+
+.btn {
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.btn--primary {
+  background: var(--sky-teal);
+  color: var(--paper);
+  box-shadow: 0 4px 0 rgba(46,41,43,0.35);
+}
+.btn--primary:active { box-shadow: none; transform: translateY(4px); }
+
+.harvest-list {
+  text-align: left;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.harvest-list li {
+  border: 2px solid rgba(46,41,43,0.2);
+  border-left: 5px solid var(--squash);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.harvest-list .h-ref {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--squash);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.harvest-list .h-verse {
+  font-size: 14px;
+  font-style: italic;
+  margin-top: 2px;
+}
+
+/* -------------------------------- Responsive -------------------------------- */
+@media (max-width: 420px) {
+  .vine-board { --vine-cell: 62px; padding: 16px; }
+  .overlay__title { font-size: 21px; }
+}
