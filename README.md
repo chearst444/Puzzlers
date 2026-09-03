@@ -4,7 +4,7 @@ A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
 JavaScript — no build step, no dependencies. Every gem is a cropped PNG of
 an actual marker drawing (`assets/handmade/`): pentagon/diamond/rectangle
 in the game's mint/teal, forest green, and pink/magenta palette, plus
-circle/square in yellow and navy for extra variety.
+circle, square, heart, and star each in their own accent color.
 
 ## Play it
 
@@ -21,8 +21,8 @@ There's nothing to build or install.
 
 - **Board** — an 8×8 grid (`js/game.js`) filled with gems from an explicit
   13-type roster (`GEM_TYPES`): pentagon/diamond/rectangle × teal/forest/
-  pink, plus circle/square × yellow/navy, seeded so no match exists before
-  the first move.
+  pink, plus circle (yellow), square (navy), heart (orange), and star
+  (purple), seeded so no match exists before the first move.
 - **Moves** — tap a gem then an adjacent one, or drag/swipe a gem into a
   neighboring cell. A swap that doesn't create a match slides back.
 - **Matching** — runs of 3+ identical shape+color gems clear, remaining gems
