@@ -2,7 +2,9 @@
 
 A self-contained pipe-connection puzzle built with HTML5, CSS, and vanilla
 JavaScript — no build step, no dependencies. Tap a pipe to rotate it 90° and
-route the flow from the spout to the drain without leaks.
+route the flow from the spout to the drain without leaks. The four pipe
+shapes (`assets/pipes/`) are hand-drawn — real cropped linework, with an
+empty and a flowing (teal-filled) variant of each.
 
 ## Play it
 
