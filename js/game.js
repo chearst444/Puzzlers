@@ -6,8 +6,19 @@
 
   // ------------------------------- Config ---------------------------------
   const SIZE = 8;
-  const SHAPES = ["pentagon", "diamond", "rectangle"];
-  const COLORS = ["teal", "forest", "pink"];
+  // Every gem type that can spawn, as an explicit (shape, color) list rather
+  // than a shape x color cross product - each is a real hand-drawn crop
+  // (assets/handmade/) and not every shape was drawn in every color, so the
+  // roster is exactly the combos that actually have art: pentagon/diamond/
+  // rectangle in the game's original teal/forest/pink trio, plus circle and
+  // square in their own yellow/navy pair for extra board variety.
+  const GEM_TYPES = [
+    { shape: "pentagon", color: "teal" }, { shape: "pentagon", color: "forest" }, { shape: "pentagon", color: "pink" },
+    { shape: "diamond", color: "teal" }, { shape: "diamond", color: "forest" }, { shape: "diamond", color: "pink" },
+    { shape: "rectangle", color: "teal" }, { shape: "rectangle", color: "forest" }, { shape: "rectangle", color: "pink" },
+    { shape: "circle", color: "yellow" }, { shape: "circle", color: "navy" },
+    { shape: "square", color: "yellow" }, { shape: "square", color: "navy" },
+  ];
   const POINTS_PER_GEM = 10;
   const METER_PER_GEM = 7;
   const SWIPE_THRESHOLD_RATIO = 0.22; // fraction of a cell needed to register a swipe
@@ -94,7 +105,7 @@
 
   // ------------------------------ Utilities ---------------------------------
   const rand = (n) => Math.floor(Math.random() * n);
-  const randomType = () => ({ shape: SHAPES[rand(SHAPES.length)], color: COLORS[rand(COLORS.length)] });
+  const randomType = () => GEM_TYPES[rand(GEM_TYPES.length)];
   const sameType = (a, b) => !!a && !!b && a.shape === b.shape && a.color === b.color;
   const makeGem = (type) => ({ id: gemUid++, shape: type.shape, color: type.color });
   const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
