@@ -1,7 +1,7 @@
 "use strict";
 
 /* ===========================================================
-   Gem Match — standard match-3
+   Bracket Racket — standard match-3
    Handmade gem art (assets/handmade/) instead of generated SVG shapes.
    Deliberately a different set of hand-drawn shapes than the Match-3
    game (which uses pentagon/diamond/rectangle/circle/square/heart/star) -

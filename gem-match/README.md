@@ -1,4 +1,4 @@
-# Puzzlers — Gem Match
+# Puzzlers — Bracket Racket
 
 A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
 JavaScript — no build step, no dependencies. Every gem is a cropped PNG of
