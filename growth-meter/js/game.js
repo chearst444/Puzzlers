@@ -81,17 +81,10 @@ function badgeIcon(name) {
 function cardIcon(name) {
   return `<svg viewBox="0 0 24 24" fill="none" style="stroke:${CARD_COLORS[name]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
 }
-// Hand-drawn vine segments, shared with Pipe Flow's straight/elbow art
-// (assets/vine/, cropped from the same sprite sheet) - the vine puzzle uses
-// the same two shape types and the same canonical orientation (straight =
-// N/S, elbow = N/E), so it's the same real pieces, just a different theme.
-// Stacked empty/flow layers, cross-faded via .vine-cell.is-flowing, mirror
-// how Pipe Flow shows its own wet/dry pipe state.
 function vineArt(type) {
-  return `
-    <img class="vine-cell__layer vine-cell__layer--empty" src="assets/vine/pipe-${type}-empty.png" alt="">
-    <img class="vine-cell__layer vine-cell__layer--flow" src="assets/vine/pipe-${type}-flow.png" alt="">
-  `;
+  return type === 'straight'
+    ? '<svg viewBox="0 0 100 100"><line class="vine-stroke" x1="50" y1="0" x2="50" y2="100" stroke-width="16" stroke-linecap="round"/><circle class="vine-node" cx="50" cy="50" r="7"/></svg>'
+    : '<svg viewBox="0 0 100 100"><path class="vine-stroke" d="M50 0 L50 50 L100 50" fill="none" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><circle class="vine-node" cx="50" cy="50" r="7"/></svg>';
 }
 
 /* --------------------------------- Stages --------------------------------- */
