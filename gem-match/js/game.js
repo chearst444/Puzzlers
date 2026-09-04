@@ -3,10 +3,12 @@
 /* ===========================================================
    Gem Match — standard match-3
    Handmade gem art (assets/handmade/) instead of generated SVG shapes.
-   Matching is still purely by color (see color.id below); shape is a
-   cosmetic layer on top, drawn from whichever real hand-drawn shapes
-   exist in that color - most colors only have one, teal/forest/pink
-   have all three, so those runs show a bit of shape variety too.
+   Deliberately a different set of hand-drawn shapes than the Match-3
+   game (which uses pentagon/diamond/rectangle/circle/square/heart/star) -
+   this one draws on the sprite sheet's bracket/tile marks instead, so
+   the two games don't look like reskins of each other. Matching is
+   still purely by color (see color.id below); shape is a cosmetic layer
+   on top, cycling the three real shapes drawn in that color.
    =========================================================== */
 
 const ROWS = 8;
@@ -21,13 +23,10 @@ const FALL_MS = 220;
 // color - a real crop of assets/handmade/gem-<shape>-<id>.png, not a full
 // shape x color cross product.
 const COLORS = [
-  { id: "teal",   shapes: ["pentagon", "diamond", "rectangle"] },
-  { id: "forest", shapes: ["pentagon", "diamond", "rectangle"] },
-  { id: "pink",   shapes: ["pentagon", "diamond", "rectangle"] },
-  { id: "yellow", shapes: ["circle"] },
-  { id: "navy",   shapes: ["square"] },
-  { id: "orange", shapes: ["heart"] },
-  { id: "purple", shapes: ["star"] },
+  { id: "pink",   shapes: ["tab", "bracketl", "bracketr"] },
+  { id: "teal",   shapes: ["tab", "bracketl", "bracketr"] },
+  { id: "purple", shapes: ["tab", "bracketl", "bracketr"] },
+  { id: "cream",  shapes: ["tab", "bracketl", "bracketr"] },
 ];
 
 /* ---------- state ---------- */

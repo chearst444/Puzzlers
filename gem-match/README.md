@@ -2,11 +2,11 @@
 
 A self-contained match-3 puzzle game built with HTML5, CSS, and vanilla
 JavaScript — no build step, no dependencies. Every gem is a cropped PNG of
-an actual hand-drawn marker sketch (`assets/handmade/`, shared with the
-Match-3 game). Matching is by color; each color has its own real shape
-roster — teal/forest/pink cycle through pentagon/diamond/rectangle, while
-yellow, navy, orange, and purple each carry a single shape (circle,
-square, heart, and star respectively).
+an actual hand-drawn marker sketch (`assets/handmade/`) — a deliberately
+different set of shapes than the Match-3 game, so the two don't look like
+reskins of each other: a stacked "tab" mark and a pair of brackets
+(`[`/`]`), each in pink, teal, purple, and cream. Matching is by color;
+shape is just cosmetic variety within a color.
 
 ## Play it
 
